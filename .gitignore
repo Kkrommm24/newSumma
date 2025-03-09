@@ -1,0 +1,66 @@
+# =====================================
+# Python Environment / Virtualenv
+# =====================================
+.venv/
+venv/
+env/
+*.env
+*.venv
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# =====================================
+# Django
+# =====================================
+db.sqlite3
+db.sqlite3-journal
+*.log
+local_settings.py
+.env
+.env.*
+media/
+staticfiles/
+config/settings/local.py
+config/settings/__pycache__/
+
+# Ignore Django migration caches
+**/migrations/*.pyc
+**/migrations/__pycache__/
+
+# =====================================
+# Node.js / React
+# =====================================
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnp/
+.pnp.js
+build/
+dist/
+coverage/
+*.tsbuildinfo
+.eslintcache
+.next/
+.out/
+
+# =====================================
+# Editor / OS-specific
+# =====================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =====================================
+# Docker / Deployment
+# =====================================
+docker-compose.override.yml
+.docker/
+*.pid
+*.db
+logs/
