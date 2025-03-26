@@ -1,6 +1,6 @@
 from django.apps import AppConfig
-import logging
 
-class NewsConfig(AppConfig):
+
+class ApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'news'
+    name = 'api'

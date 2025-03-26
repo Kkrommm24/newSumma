@@ -64,3 +64,8 @@ docker-compose.override.yml
 *.pid
 *.db
 logs/
+
+# =====================================
+# Selenium
+# =====================================
+chromedriver-linux64/

@@ -8,6 +8,7 @@ services:
     volumes:
       - ./backend:/app
       - static_volume:/app/static
+    working_dir: /app
     depends_on:
       db:
         condition: service_healthy
@@ -44,28 +45,34 @@ services:
 
   celery_worker:
     build: ./backend
-    user: "1001:1001"
     env_file:
       - .env
     volumes:
       - ./backend:/app
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - DJANGO_SETTINGS_MODULE=backend.settings
     depends_on:
       - backend
       - redis
-    command: celery -A backend worker --loglevel=info
+    command: python -m celery -A backend worker --loglevel=info
 
   celery_beat:
     build: ./backend
-    user: "1001:1001"
     env_file:
       - .env
     volumes:
       - ./backend:/app
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - DJANGO_SETTINGS_MODULE=backend.settings
     depends_on:
       - backend
       - redis
       - celery_worker
-    command: celery -A backend beat --loglevel=info
+    command: python -m celery -A backend beat --loglevel=info
 
 volumes:
   pgdata:
