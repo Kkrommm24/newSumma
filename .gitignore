@@ -1,60 +1,129 @@
 # =====================================
-# Python Environment / Virtualenv
+# Python / Django
 # =====================================
+# Môi trường ảo
 .venv/
 venv/
 env/
-*.env
-*.venv
-*.pyc
-*.pyo
-*.pyd
-__pycache__/
+ENV/
+virtualenv/
 
-# =====================================
+# Các file Python
+*.py[cod]
+*$py.class
+__pycache__/
+*.so
+.Python
+*.egg-info/
+*.egg
+.installed.cfg
+MANIFEST
+
 # Django
-# =====================================
 db.sqlite3
 db.sqlite3-journal
 *.log
 local_settings.py
-.env
-.env.*
 media/
 staticfiles/
 config/settings/local.py
-config/settings/__pycache__/
+.env
+.env.*
 
-# Ignore Django migration caches
+# Migrations cache
 **/migrations/*.pyc
 **/migrations/__pycache__/
 
 # =====================================
-# Node.js / React
+# Node.js / React / Vite
 # =====================================
+# Dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
-yarn-debug.log
 .pnp/
 .pnp.js
-build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
 dist/
+dist-ssr/
+build/
 coverage/
+*.local
+
+# Vite
+.vite/
+
+# TypeScript
 *.tsbuildinfo
+
+# Cache
 .eslintcache
+.stylelintcache
+.parcel-cache
+
+# Next.js
 .next/
-.out/
+out/
 
 # =====================================
-# Editor / OS-specific
+# Editor / IDE
 # =====================================
-.DS_Store
-Thumbs.db
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains
 .idea/
-.vscode/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# Vim
 *.swp
 *.swo
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# =====================================
+# OS-specific
+# =====================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
 
 # =====================================
 # Docker / Deployment
@@ -66,6 +135,58 @@ docker-compose.override.yml
 logs/
 
 # =====================================
-# Selenium
+# Testing / CI
 # =====================================
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.nyc_output
+
+# =====================================
+# Selenium / Browser Testing
+# =====================================
+chromedriver*
+geckodriver*
 chromedriver-linux64/
+
+# =====================================
+# ML / Data Science
+# =====================================
+# Model files
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.mlmodel
+
+# Data files
+*.csv
+*.dat
+*.npy
+*.npz
+
+# =====================================
+# Misc
+# =====================================
+# Temporary files
+tmp/
+temp/
+.temp/
+.tmp/
+
+# Local files
+.local/
+local/
+
+# Secrets
+*.pem
+*.key
+*.cert
+*.p12
