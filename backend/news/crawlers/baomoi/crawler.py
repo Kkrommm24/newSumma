@@ -74,6 +74,9 @@ class BaomoiCrawler:
                             main_content = driver.find_element(By.XPATH, '//div[contains(@class,"content-main relative")]')
                             paragraphs = main_content.find_elements(By.XPATH, './/p[contains(@class, "text") and not(contains(@class, "body-author"))]')
                             content = "\n\n".join([p.text.strip() for p in paragraphs if p.text.strip()])
+                            if content == "":
+                                logger.warning("❌ Không thể lấy content")
+                                continue
                         except Exception as e:
                             logger.warning(f"❌ Không thể lấy content: {e}")
                             continue

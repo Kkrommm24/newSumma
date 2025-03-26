@@ -45,16 +45,21 @@ class VNExpressCrawler:
                     driver.execute_script("window.open('');")
                     driver.switch_to.window(driver.window_handles[1])
                     driver.get(url)
+                    logger.info(f"Đã chuyển đến: {driver.current_url}")
 
                     try:
-                        WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.XPATH, '//section[contains(@class, "section")]//div[contains(@class, "container")]'))
+                        WebDriverWait(driver, 15).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'article.fck_detail'))
                         )
-
-                        page = driver.find_element(By.XPATH, '//section[contains(@class, "section")]//div[contains(@class, "container")]')
-                        time.sleep(3)
-                        driver.execute_script("window.scrollTo(0, 500);")
-
+                        
+                        # Scroll nhẹ nhàng hơn
+                        driver.execute_script("window.scrollTo(0, 700);")
+                        time.sleep(2)
+                        
+                        # Đợi paragraph đầu tiên
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'p.Normal'))
+                        )
 
                         try:
                             datetime_elem = driver.find_element(By.XPATH, '//span[contains(@class, "date")]')
@@ -64,7 +69,7 @@ class VNExpressCrawler:
                             continue
                         
                         try:
-                            category_elem = page.find_element(By.XPATH, '//ul[contains(@class, "breadcrumb")]//a[contains(@data-medium, "Menu")]')
+                            category_elem = driver.find_element(By.XPATH, '//ul[contains(@class, "breadcrumb")]//a[contains(@data-medium, "Menu")]')
                             category_name = category_elem.text.strip().upper()
                             if not check_category_exist(category_name):
                                 logger.info(f"⏭️ Bỏ qua category không tồn tại: {category_name}")
@@ -74,18 +79,24 @@ class VNExpressCrawler:
                             continue
 
                         try:
-                            paragraphs = page.find_elements(By.XPATH, './/p[contains(@class, "Normal")]')
+                            paragraphs = driver.find_elements(By.XPATH, './/p[contains(@class, "Normal") or contains(@class, "description")]')
                             content = "\n\n".join([p.text.strip() for p in paragraphs if p.text.strip()])
-                            if content == "":
-                                logger.warning("❌ Không thể lấy content")
+                            
+                            # Thêm logging để debug
+                            logger.info(f"Số đoạn văn tìm thấy: {len(paragraphs)}")
+                            logger.info(f"Độ dài content: {len(content)} ký tự")
+                            
+                            if len(content) < 50:
+                                logger.warning(f"❌ Nội dung quá ngắn hoặc trống: {url}")
                                 continue
+                                
                         except Exception as e:
                             logger.warning(f"❌ Không thể lấy content: {e}")
                             continue
 
                         image_url = None
                         try:
-                            img_elem = page.find_element(By.XPATH, './/img[contains(@src, ".j") and contains(@alt, "")]')
+                            img_elem = driver.find_element(By.XPATH, './/img[contains(@src, ".j") and contains(@alt, "")]')
                             image_url = img_elem.get_attribute("src")
                         except Exception:
                             try:
@@ -104,6 +115,7 @@ class VNExpressCrawler:
                         logger.exception("⚠️ Lỗi không xác định trong crawl(): %s", str(e))
                         continue
 
+                    logger.info(f"✅ Đã crawl thành công bài: {title}")
                     if image_url:
                         results.append({
                             'title': title,
