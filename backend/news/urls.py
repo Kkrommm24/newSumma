@@ -1,9 +1,13 @@
-from django.urls import path
-from news.views.article import ArticleListView
-from news.views.crawl import crawl_baomoi_view, crawl_vnexpress_view
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from news.views.crawl import CrawlerViewSet
+from news.views.summary import get_summaries, ArticleSummaryViewSet
+
+router = DefaultRouter()
+router.register(r'summarizers', ArticleSummaryViewSet, basename='summarizer')
+router.register(r'crawlers', CrawlerViewSet, basename='crawler')
 
 urlpatterns = [
-    path('articles/', ArticleListView.as_view(), name='article-list'),
-    path('crawl/baomoi/', crawl_baomoi_view, name='crawl-baomoi'),
-    path('crawl/vnexpress/', crawl_vnexpress_view, name='crawl-vnexpress'),
+    path('', include(router.urls)),
+    path('summaries/', get_summaries, name='get-summaries'),
 ]

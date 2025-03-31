@@ -7,7 +7,7 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 @shared_task
-def crawl_vnexpress_articles(limit=20):
+def crawl_vnexpress_articles(limit=10):
     logger.info("🔍 Bắt đầu crawl bài viết từ VNExpress...")
     crawler = VNExpressCrawler()
 

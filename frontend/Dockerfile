@@ -1,18 +1,28 @@
-# Use official Node.js image
+# Sử dụng Node.js image
 FROM node:22
 
-# Set working directory
+# Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Copy package.json and install dependencies
-COPY package.json package-lock.json ./
-RUN npm install
+# Sao chép package.json và package-lock.json
+COPY package*.json ./
 
-# Copy the rest of the project
+# Cài đặt dependencies
+RUN npm install && \
+    npm install -D tailwindcss@latest postcss@latest autoprefixer@latest && \
+    npm install react react-dom react-router-dom prop-types axios && \
+    npm install antd @ant-design/icons && \
+    npm install @tailwindcss/line-clamp
+
+# Sao chép source code
 COPY . .
 
-# Expose Vite port
+# Thiết lập môi trường
+ENV PATH="/app/node_modules/.bin:$PATH"
+ENV VITE_HOST=0.0.0.0
+
+# Mở cổng
 EXPOSE 5173
 
-# Start Vite dev server
-CMD ["npm", "run", "dev"]
+# Chạy server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
