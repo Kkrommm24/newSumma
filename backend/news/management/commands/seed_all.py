@@ -20,5 +20,8 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.NOTICE("\n👉 Seed vnexpress tasks..."))
         call_command('seed_vnexpress_tasks')
+        
+        self.stdout.write(self.style.NOTICE("\n👉 Seed summary tasks..."))
+        call_command('seed_summary_tasks')
 
         self.stdout.write(self.style.SUCCESS("\n✅ Đã seed xong tất cả dữ liệu!"))

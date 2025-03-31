@@ -7,7 +7,7 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 @shared_task
-def crawl_baomoi_articles(limit=50):
+def crawl_baomoi_articles(limit=10):
     logger.info("🔍 Bắt đầu crawl bài viết từ Báo Mới...")
     crawler = BaomoiCrawler()
 

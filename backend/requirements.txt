@@ -1,3 +1,4 @@
+accelerate==1.5.2
 amqp==5.3.1
 anyio==4.8.0
 argon2-cffi==23.1.0
@@ -42,9 +43,12 @@ fqdn==1.5.1
 fsspec==2025.2.0
 gunicorn==23.0.0
 h11==0.14.0
+h2==4.2.0
+hpack==4.1.0
 httpcore==1.0.7
 httpx==0.28.1
 huggingface-hub==0.29.1
+hyperframe==6.1.0
 idna==3.10
 ipykernel==6.29.5
 ipython==8.34.0
@@ -95,6 +99,7 @@ overrides==7.7.0
 packaging==24.2
 pandocfilters==1.5.1
 parso==0.8.4
+peft==0.15.0
 pexpect==4.9.0
 platformdirs==4.3.6
 prometheus_client==0.21.1
