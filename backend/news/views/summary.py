@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework import status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from news.models import NewsSummary, NewsArticle
 from news.serializers.serializers import SummarySerializer
 from news.summarizers.llama.article_summary import LlamaSummarizer
@@ -11,36 +12,55 @@ import torch
 
 logger = logging.getLogger(__name__)
 
+# --- Cấu hình Pagination --- 
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10 # Số lượng item mỗi trang
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 @api_view(['GET'])
 def get_summaries(request):
-    """Lấy danh sách summary với các tùy chọn lọc"""
+    """Lấy danh sách summary với các tùy chọn lọc và phân trang"""
     try:
-        article_id = request.GET.get('article_id')
+        article_id_param = request.GET.get('article_id')
         sort_by = request.GET.get('sort_by', '-created_at')
 
         queryset = NewsSummary.objects.all()
 
-        if article_id:
-            queryset = queryset.filter(article_id=article_id)
+        if article_id_param:
+            queryset = queryset.filter(article_id=article_id_param)
+
+        valid_sort_fields = [
+            'created_at', '-created_at',
+            'upvotes', '-upvotes',
+            'downvotes', '-downvotes',
+        ]
+        if sort_by in valid_sort_fields:
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by('-created_at')
             
-        queryset = queryset.order_by(sort_by)
-        
-        serializer = SummarySerializer(queryset, many=True)
-        
-        if not queryset.exists():
-            return Response({
-                'status': 'error',
-                'message': 'NOT_FOUND',
-                'results': []
-            }, status=status.HTTP_404_NOT_FOUND)
-            
-        return Response({
-            'status': 'success',
-            'message': 'SUCCESS',
-            'results': serializer.data
-        }, status=status.HTTP_200_OK)
-        
+        # --- Áp dụng Pagination --- 
+        paginator = StandardResultsSetPagination()
+        paginated_summaries = paginator.paginate_queryset(queryset, request)
+
+        # Lấy danh sách các article_id từ summaries đã phân trang
+        article_ids = [s.article_id for s in paginated_summaries]
+
+        # Lấy các NewsArticle tương ứng chỉ bằng một query
+        articles_dict = { 
+            str(article.id): article 
+            for article in NewsArticle.objects.filter(id__in=article_ids)
+        }
+
+        # Truyền articles_dict vào context của serializer
+        serializer = SummarySerializer(paginated_summaries, many=True, context={'articles': articles_dict})
+
+        # --- Trả về response đã phân trang --- 
+        return paginator.get_paginated_response(serializer.data)
+
     except Exception as e:
+        logger.exception(f"Lỗi khi lấy summaries: {str(e)}")
         return Response(
             {
                 'status': 'error',

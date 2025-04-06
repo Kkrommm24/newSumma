@@ -11,6 +11,7 @@ COPY package*.json ./
 RUN npm install && \
     npm install -D tailwindcss@latest postcss@latest autoprefixer@latest && \
     npm install react react-dom react-router-dom prop-types axios && \
+    npm install react-infinite-scroll-component && \
     npm install antd @ant-design/icons && \
     npm install @tailwindcss/line-clamp
 
