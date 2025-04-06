@@ -13,7 +13,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = NewsArticle
         fields = ['id', 'title', 'url', 'published_at', 'image_url', 'categories']
 
-    def get_categories(self, obj):
+    def c(self, obj):
         category_ids = NewsArticleCategory.objects.filter(article_id=obj.id).values_list('category_id', flat=True)
         categories = Category.objects.filter(id__in=category_ids)
         return CategorySerializer(categories, many=True).data
@@ -35,15 +35,35 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
         return NewsSummary.objects.filter(article_id=obj.id).exists()
 
 class SummarySerializer(serializers.ModelSerializer):
-    article_title = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    url = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
-        fields = ['id', 'article_id', 'article_title', 'summary_text', 'upvotes', 'downvotes', 'created_at']
+        fields = [
+            'id', 
+            'article_id', 
+            'title',
+            'summary_text',
+            'image_url',
+            'url',
+            'upvotes', 
+            'downvotes', 
+            'created_at'
+        ]
 
-    def get_article_title(self, obj):
-        try:
-            article = NewsArticle.objects.get(id=obj.article_id)
-            return article.title
-        except NewsArticle.DoesNotExist:
-            return None
+    def get_title(self, obj):
+        articles = self.context.get('articles', {})
+        article = articles.get(str(obj.article_id))
+        return article.title if article else None
+
+    def get_image_url(self, obj):
+        articles = self.context.get('articles', {})
+        article = articles.get(str(obj.article_id))
+        return article.image_url if article else None
+
+    def get_url(self, obj):
+        articles = self.context.get('articles', {})
+        article = articles.get(str(obj.article_id))
+        return article.url if article else None
