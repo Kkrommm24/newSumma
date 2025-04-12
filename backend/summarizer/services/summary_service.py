@@ -5,7 +5,7 @@ from django.contrib.postgres.search import SearchVector
 from summarizer.summarizers.llama.article_summary import LlamaSummarizer
 import gc
 import torch
-from ..utils.validators import is_mostly_uppercase, contains_numbered_list
+from news.utils.validators import is_mostly_uppercase, contains_numbered_list
 
 logger = logging.getLogger(__name__)
 

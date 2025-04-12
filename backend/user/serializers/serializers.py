@@ -1,0 +1,34 @@
+from rest_framework import serializers
+from news.models import UserPreference 
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreference
+        fields = ['favorite_keywords']
+        read_only_fields = ['favorite_keywords'] 
+        
+class AddFavoriteKeywordsSerializer(serializers.Serializer):
+    keywords = serializers.ListField(
+        child=serializers.CharField(max_length=100, allow_blank=False),
+        allow_empty=False,
+        help_text="Danh sách các từ khóa cần thêm."
+    )
+
+    def validate_keywords(self, value):
+        cleaned_keywords = [kw.strip() for kw in value if isinstance(kw, str) and kw.strip()]
+        if not cleaned_keywords:
+            raise serializers.ValidationError("Danh sách từ khóa không hợp lệ.")
+        return cleaned_keywords
+
+class DeleteFavoriteKeywordsSerializer(serializers.Serializer):
+    keywords = serializers.ListField(
+        child=serializers.CharField(max_length=100, allow_blank=False),
+        allow_empty=False,
+        help_text="Danh sách các từ khóa cần xóa khỏi danh sách yêu thích."
+    )
+
+    def validate_keywords_to_delete(self, value):
+        cleaned_keywords = [kw for kw in value if isinstance(kw, str) and kw.strip()]
+        if not cleaned_keywords:
+             raise serializers.ValidationError("Danh sách từ khóa cần xóa không được rỗng.")
+        return value 

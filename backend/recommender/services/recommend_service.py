@@ -7,7 +7,7 @@ from functools import reduce
 import operator
 from django.utils import timezone
 import datetime
-from summarizer.utils.summary_utils import get_latest_summaries, get_articles_for_summaries
+from news.utils.summary_utils import get_latest_summaries, get_articles_for_summaries
 
 logger = logging.getLogger(__name__)
 SEARCH_HISTORY_LIMIT = 5

@@ -1,10 +1,9 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated # Assuming authentication is needed
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from recommender.services.recommend_service import get_recommendations_for_user
 
-from recommender.views.pagination import InfiniteScrollPagination
+from news.utils.pagination import InfiniteScrollPagination
 from news.serializers.serializers import SummarySerializer
 import logging
 

@@ -7,9 +7,7 @@ from summarizer.serializers.serializers import SummarySerializer
 from summarizer.services.article_service import ArticleService
 from summarizer.summarizers.llama.tasks import generate_article_summaries, summarize_single_article_task
 import logging
-import gc
-import torch
-from summarizer.utils.summary_utils import get_articles_for_summaries
+from news.utils.summary_utils import get_articles_for_summaries
 
 logger = logging.getLogger(__name__)
 
