@@ -6,7 +6,7 @@ function Home() {
   return (
     <Row justify="center" align="middle" style={{ minHeight: 'calc(100vh - 32px)' }}>
       <Col style={{ maxWidth: '600px', width: '100%' }}>
-        <NewsContent />
+        <NewsContent fetchMode="recommendations" />
       </Col>
     </Row>
   )

@@ -2,31 +2,37 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import { Spin } from 'antd';
 import NewsCard from "./NewsCard";
+import axiosInstance from '../services/axiosInstance';
 
-const NewsContent = () => {
+const NEWS_PER_PAGE = 10;
+
+const NewsContent = ({ fetchMode = 'recommendations' }) => {
   const [newsItems, setNewsItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCardId, setSelectedCardId] = useState(null);
   const cardRefs = useRef({});
-  const [page, setPage] = useState(1);
+  const [offset, setOffset] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchNews = useCallback(async (currentPage) => {
-    if (currentPage === 1) {
+  const fetchNews = useCallback(async (currentOffset) => {
+    if (currentOffset === 0) {
       setLoading(true);
     }
     setError(null);
     try {
-      const response = await fetch(`/api/summaries/?sort_by=-created_at&page=${currentPage}`);
-      if (!response.ok) {
-        const errorData = { status: response.status, message: response.statusText };
-        try {
-          errorData.body = await response.text();
-        } catch (e) { /* Bỏ qua */ }
-        throw new Error(JSON.stringify(errorData));
+      let url = '';
+      if (fetchMode === 'trending') {
+        url = `/summarizer/summaries/?sort_by=-created_at&limit=${NEWS_PER_PAGE}&offset=${currentOffset}`;
+      } else {
+        url = `/recommender/recommendations/?limit=${NEWS_PER_PAGE}&offset=${currentOffset}`;
       }
-      const data = await response.json();
+      
+      console.log(`Fetching data from: ${url}`);
+      const response = await axiosInstance.get(url);
+      
+      const data = response.data;
 
       if (data && data.results) {
         const formattedData = data.results.map(item => ({
@@ -34,17 +40,20 @@ const NewsContent = () => {
           title: item.title || 'Không có tiêu đề',
           summary: item.summary_text || 'Không có tóm tắt',
           imageUrl: item.image_url || null,
-          sourceUrl: item.url || '#'
+          sourceUrl: item.url || '#',
+          keywords: item.keywords || []
         }));
 
         setNewsItems(prevItems =>
-          currentPage === 1 ? formattedData : [...prevItems, ...formattedData]
+          currentOffset === 0 ? formattedData : [...prevItems, ...formattedData]
         );
-        setHasMore(data.next !== null);
-        setPage(currentPage);
+        setTotalCount(data.count || 0);
+        setHasMore((currentOffset + NEWS_PER_PAGE) < (data.count || 0));
+        setOffset(currentOffset + NEWS_PER_PAGE); 
+
       } else {
         setHasMore(false);
-        if (currentPage === 1) setNewsItems([]);
+        if (currentOffset === 0) setNewsItems([]);
         console.warn("API response structure might be different:", data);
       }
     } catch (err) {
@@ -57,14 +66,14 @@ const NewsContent = () => {
       setError(errorMessage);
       setHasMore(false);
     } finally {
-      if (currentPage === 1) {
+      if (currentOffset === 0) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [fetchMode]);
 
   useEffect(() => {
-    fetchNews(1);
+    fetchNews(0);
   }, [fetchNews]);
 
   useEffect(() => {
@@ -78,7 +87,7 @@ const NewsContent = () => {
 
   const fetchMoreData = () => {
     if (!hasMore) return;
-    fetchNews(page + 1);
+    fetchNews(offset); 
   };
 
   const handleCardClick = (id) => {

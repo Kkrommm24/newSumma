@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary
+from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,6 +39,7 @@ class SummarySerializer(serializers.ModelSerializer):
     title = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
+    keywords = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
@@ -48,6 +50,7 @@ class SummarySerializer(serializers.ModelSerializer):
             'summary_text',
             'image_url',
             'url',
+            'keywords',
             'upvotes', 
             'downvotes', 
             'created_at'
@@ -67,3 +70,26 @@ class SummarySerializer(serializers.ModelSerializer):
         articles = self.context.get('articles', {})
         article = articles.get(str(obj.article_id))
         return article.url if article else None
+
+    def get_keywords(self, obj):
+        return getattr(obj, 'source_keywords', [])
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    pass
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user_serializer = UserSerializer(self.user)
+        data['user'] = user_serializer.data
+
+        return data
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'avatar', 'is_staff', 'is_superuser')

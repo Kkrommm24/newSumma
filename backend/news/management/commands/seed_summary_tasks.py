@@ -19,7 +19,7 @@ class Command(BaseCommand):
         PeriodicTask.objects.create(
             name='Summarizing every 10 minutes',
             interval=schedule,
-            task='news.summarizers.llama.tasks.generate_article_summaries',
+            task='summarizer.summarizers.llama.tasks.generate_article_summaries',
             args=json.dumps([10]),
         )
 

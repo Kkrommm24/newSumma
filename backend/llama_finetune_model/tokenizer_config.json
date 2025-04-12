@@ -2053,11 +2053,18 @@
   "clean_up_tokenization_spaces": true,
   "eos_token": "<|end_of_text|>",
   "extra_special_tokens": {},
+  "max_length": 2048,
   "model_input_names": [
     "input_ids",
     "attention_mask"
   ],
   "model_max_length": 131072,
+  "pad_to_multiple_of": null,
   "pad_token": "<|end_of_text|>",
-  "tokenizer_class": "PreTrainedTokenizerFast"
+  "pad_token_type_id": 0,
+  "padding_side": "left",
+  "stride": 0,
+  "tokenizer_class": "PreTrainedTokenizerFast",
+  "truncation_side": "right",
+  "truncation_strategy": "longest_first"
 }
