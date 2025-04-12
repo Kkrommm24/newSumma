@@ -1,14 +1,55 @@
 import uuid
 from django.db import models
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
+from django.contrib.postgres.search import SearchVector, SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
+from django.utils import timezone
 
-class User(models.Model):
+# Custom User Manager
+class UserManager(BaseUserManager):
+    def create_user(self, username, email, password=None, **extra_fields):
+        """Creates and saves a new user"""
+        if not username:
+            raise ValueError('Users must have a username')
+        if not email:
+            raise ValueError('Users must have an email address')
+
+        email = self.normalize_email(email)
+        user = self.model(username=username, email=email, **extra_fields)
+        user.set_password(password) # Hashes the password
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        """Creates and saves a new superuser"""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True) # Ensure superuser is active
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(username, email, password, **extra_fields)
+
+class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(unique=True)
-    password = models.CharField(max_length=255)
     avatar = models.URLField(null=True, blank=True)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = UserManager()
+
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email']
+
+    def __str__(self):
+        return self.username
 
 class NewsSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -52,6 +93,24 @@ class NewsSummary(models.Model):
     downvotes = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    search_vector = SearchVectorField(null=True, blank=True, editable=False)
+
+    class Meta:
+        indexes = [
+            GinIndex(fields=['search_vector']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Summary for {self.article.title}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if 'update_fields' not in kwargs or 'summary_text' in kwargs['update_fields']:
+            NewsSummary.objects.filter(pk=self.pk).update(
+                search_vector=SearchVector('summary_text', config='vietnamese') 
+            )
 
 class UserSavedArticle(models.Model):
     user_id = models.UUIDField()

@@ -46,8 +46,8 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Copy local ChromeDriver to a known location
-RUN chmod +x news/chromedriver-linux64/chromedriver && \
-    cp news/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+RUN chmod +x crawler/chromedriver-linux64/chromedriver && \
+    cp crawler/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
 
 # Create a non-root user
 RUN groupadd -g 1001 appgroup && \

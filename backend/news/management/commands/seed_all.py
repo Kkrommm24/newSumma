@@ -12,6 +12,15 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE("👉 Seed categories..."))
         call_command('seed_categories')
 
+        self.stdout.write(self.style.NOTICE("\n👉 Seed users..."))
+        call_command('seed_users')
+
+        self.stdout.write(self.style.NOTICE("\n👉 Seed user preferences..."))
+        call_command('seed_user_preferences')
+
+        self.stdout.write(self.style.NOTICE("\n👉 Seed search history..."))
+        call_command('seed_search_histories')
+
         self.stdout.write(self.style.NOTICE("\n👉 Seed news sources..."))
         call_command('seed_news_sources')
 
