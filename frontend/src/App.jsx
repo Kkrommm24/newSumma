@@ -1,22 +1,43 @@
-import { useEffect, useState } from "react";
-import { fetchHelloWorld } from "./api";
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from "antd"
+import Sidebar from "./components/Sidebar"
+import "./App.css"
+import Home from './pages/Home';
+import Trending from './pages/Trending';
+import FavouriteCategories from './pages/FavouriteCategories';
+import Bookmark from './pages/Bookmark';
+import Profile from './pages/Profile';
+import Language from './pages/Language';
+import Theme from './pages/Theme';
 
 function App() {
-  const [message, setMessage] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
+  const sidebarExpandedWidth = 250;
+  const sidebarCollapsedWidth = 80;
 
-  useEffect(() => {
-      fetchHelloWorld().then(setMessage);
-  }, []);
+  const mainContentMarginLeft = collapsed ? sidebarCollapsedWidth : sidebarExpandedWidth;
 
   return (
-      <div>
-          <h1>React + Django</h1>
-          <p>{message ? message : "Loading..."}</p>
-      </div>
-  );
+    <BrowserRouter>
+      <Layout className="min-h-screen">
+        <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
+        <Layout style={{ marginLeft: mainContentMarginLeft, transition: 'margin-left 0.2s' }}>
+          <main className="p-4 overflow-y-auto">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/trending" element={<Trending />} />
+              <Route path="/favourite-categories" element={<FavouriteCategories />} />
+              <Route path="/bookmark" element={<Bookmark />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/language" element={<Language />} />
+              <Route path="/theme" element={<Theme />} />
+            </Routes>
+          </main>
+        </Layout>
+      </Layout>
+    </BrowserRouter>
+  )
 }
 
 export default App;
