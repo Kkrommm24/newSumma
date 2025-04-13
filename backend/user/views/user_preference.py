@@ -3,9 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from news.models import UserPreference
+from django.core.exceptions import ObjectDoesNotExist
 from user.serializers.serializers import UserPreferenceSerializer, AddFavoriteKeywordsSerializer, DeleteFavoriteKeywordsSerializer
-from user.services.user_preference_service import add_favorite_keywords, delete_favorite_keywords
+from user.services.user_preference_service import get_user_preference, add_favorite_keywords, delete_favorite_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +15,13 @@ class UserFavoriteKeywordsView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         try:
-            preference = UserPreference.objects.get(user_id=user.id)
+            preference = get_user_preference(user.id)
             serializer = UserPreferenceSerializer(preference)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except UserPreference.DoesNotExist:
+        except ObjectDoesNotExist:
             logger.info(f"UserPreference not found for user {user.id}. Returning empty list.")
             return Response({'favorite_keywords': []}, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Error fetching UserPreference for user {user.id}: {e}", exc_info=True)
             return Response(
                 {"error": "An error occurred while fetching favorite keywords."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -42,7 +41,6 @@ class UserFavoriteKeywordsView(APIView):
                 logger.warning(f"Value error adding keywords for user {user.id}: {ve}")
                 return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                logger.error(f"Error updating keywords for user {user.id}: {e}", exc_info=True)
                 return Response(
                     {"error": "An error occurred while updating favorite keywords."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -67,7 +65,7 @@ class UserFavoriteKeywordsView(APIView):
                 return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response(
-                    {"error": "An error occurred while deleting favorite keywords."}, 
+                    {"error": "An error occurred while deleting favorite keywords."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         else:

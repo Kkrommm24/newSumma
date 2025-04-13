@@ -11,15 +11,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('accessToken');
-      if (storedToken) {
-        setToken(storedToken);
-        setIsAuthenticated(true);
-        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-      } else {
+    const storedToken = localStorage.getItem('accessToken');
+    if (storedToken) {
+      setToken(storedToken);
+      setIsAuthenticated(true);
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+    } else {
         setToken(null);
-        setIsAuthenticated(false);
-        delete axiosInstance.defaults.headers.common['Authorization'];
+      setIsAuthenticated(false);
+      delete axiosInstance.defaults.headers.common['Authorization'];
       }
     } catch (error) {
         console.error("Error during initial auth check:", error);
