@@ -1,9 +1,21 @@
 import logging
-from news.models import UserPreference # Model vẫn ở app news
+from news.models import UserPreference
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
+def get_user_preference(user_id) -> UserPreference:
+    if not user_id:
+        raise ValueError("User ID cannot be empty.")
+    try:
+        return UserPreference.objects.get(user_id=user_id)
+    except UserPreference.DoesNotExist:
+        logger.info(f"UserPreference not found for user {user_id}. This might be expected.")
+        raise
+    except Exception as e:
+        logger.error(f"Database error fetching preference for user {user_id}: {e}", exc_info=True)
+        raise
+    
 def add_favorite_keywords(user_id, keywords_to_add: list[str]) -> UserPreference:
     
     if not user_id or not keywords_to_add:

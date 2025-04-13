@@ -33,16 +33,6 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-axiosInstance.interceptors.request.use(config => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, error => {
-  return Promise.reject(error);
-});
-
 axiosInstance.interceptors.response.use(
   response => {
     return response;
@@ -77,8 +67,13 @@ axiosInstance.interceptors.response.use(
         try {
             const refreshResponse = await AuthService.refreshToken(refreshToken);
             const newAccessToken = refreshResponse.access;
+            const newRefreshToken = refreshResponse.refresh;
             
             localStorage.setItem('accessToken', newAccessToken);
+            if (newRefreshToken) {
+                localStorage.setItem('refreshToken', newRefreshToken);
+            }
+            
             axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
             originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
             

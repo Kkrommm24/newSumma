@@ -14,8 +14,8 @@ export const AuthProvider = ({ children }) => {
       const storedToken = localStorage.getItem('accessToken');
       if (storedToken) {
         setToken(storedToken);
-        setIsAuthenticated(true);
         axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        setIsAuthenticated(true);
       } else {
         setToken(null);
         setIsAuthenticated(false);

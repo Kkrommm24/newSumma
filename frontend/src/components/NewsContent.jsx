@@ -6,7 +6,7 @@ import axiosInstance from '../services/axiosInstance';
 
 const NEWS_PER_PAGE = 10;
 
-const NewsContent = ({ fetchMode = 'recommendations' }) => {
+const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   const [newsItems, setNewsItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,9 +24,17 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
     
     let url = '';
     let params = {};
+    let currentOperation = searchQuery ? 'search' : fetchMode;
 
     try {
-      if (fetchMode === 'trending') {
+      if (searchQuery) {
+        url = `/summarizer/summaries/search/`;
+        params = {
+          q: searchQuery,
+          page: pageToFetch,
+          page_size: NEWS_PER_PAGE
+        }
+      } else if (fetchMode === 'trending') {
         url = `/summarizer/summaries/`;
         params = {
            sort_by: '-created_at',
@@ -42,7 +50,7 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
         }
       }
       
-      console.log(`Fetching data from: ${url} with params:`, params);
+      console.log(`Fetching data (${currentOperation}) from: ${url} with params:`, params);
       const response = await axiosInstance.get(url, { params });
       const data = response.data;
 
@@ -59,17 +67,18 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
         setNewsItems(prevItems =>
           pageToFetch === 1 ? formattedData : [...prevItems, ...formattedData]
         );
-        setTotalCount(data.count || 0);
-        setHasMore((pageToFetch * NEWS_PER_PAGE) < (data.count || 0));
+        const count = data.count || 0;
+        setTotalCount(count);
+        setHasMore((pageToFetch * NEWS_PER_PAGE) < count);
         setCurrentPage(pageToFetch + 1);
 
       } else {
         setHasMore(false);
         if (pageToFetch === 1) setNewsItems([]);
-        console.warn("API response structure might be different:", data);
+        console.warn(`API response structure might be different or no results for ${currentOperation}:`, data);
       }
     } catch (err) {
-      console.error("Error fetching news:", err);
+      console.error(`Error fetching ${currentOperation} news:`, err);
       let errorMessage = err.message;
       try {
         const parsedError = JSON.parse(err.message);
@@ -82,14 +91,16 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
         setLoading(false);
       }
     }
-  }, [fetchMode]);
+  }, [fetchMode, searchQuery]);
 
   useEffect(() => {
+    console.log(`Mode/Query Change Triggered - Mode: ${fetchMode}, Query: ${searchQuery}`);
     setNewsItems([]);
     setCurrentPage(1);
+    setTotalCount(0);
     setHasMore(true);
     fetchNews(1);
-  }, [fetchMode, fetchNews]);
+  }, [fetchMode, searchQuery, fetchNews]);
 
   useEffect(() => {
     if (selectedCardId && cardRefs.current[selectedCardId]) {
@@ -114,11 +125,14 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
   }
 
   if (error && newsItems.length === 0) {
-    return <div className="text-red-600 bg-red-100 p-4 rounded text-center">Lỗi tải tin tức: {error}</div>;
+    return <div className="text-red-600 bg-red-100 p-4 rounded text-center">Lỗi tải dữ liệu: {error}</div>;
   }
 
-  if (!loading && newsItems.length === 0 && !hasMore) {
-    return <div className="text-center py-10 text-gray-500">Không có tin tức nào để hiển thị.</div>;
+  if (!loading && newsItems.length === 0) {
+    const message = searchQuery 
+       ? `Không tìm thấy kết quả nào cho "${searchQuery}".` 
+       : "Không có tin tức nào để hiển thị.";
+    return <div className="text-center py-10 text-gray-500">{message}</div>;
   }
 
   return (
@@ -132,7 +146,7 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
       >
         {newsItems.map((item) => (
           <div
-            key={item.id}
+            key={`${item.id}-${searchQuery || fetchMode}`}
             className="w-full max-w-xs cursor-pointer"
             onClick={() => handleCardClick(item.id)}
             ref={el => cardRefs.current[item.id] = el}
