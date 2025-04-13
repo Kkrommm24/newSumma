@@ -114,7 +114,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     addSearchHistory(query);
     setIsHistoryVisible(false);
     inputRef.current?.blur();
-    navigate(`/search?q=${encodeURIComponent(query)}`);
+    navigate(`/?q=${encodeURIComponent(query)}`);
   };
 
   useEffect(() => {

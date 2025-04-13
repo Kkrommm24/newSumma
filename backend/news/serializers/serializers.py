@@ -14,7 +14,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         model = NewsArticle
         fields = ['id', 'title', 'url', 'published_at', 'image_url', 'categories']
 
-    def c(self, obj):
+    def get_categories(self, obj):
         category_ids = NewsArticleCategory.objects.filter(article_id=obj.id).values_list('category_id', flat=True)
         categories = Category.objects.filter(id__in=category_ids)
         return CategorySerializer(categories, many=True).data

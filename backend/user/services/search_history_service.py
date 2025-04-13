@@ -2,6 +2,7 @@ import logging
 from news.models import SearchHistory
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +20,25 @@ def get_user_search_history(user_id):
 
 
 def add_user_search_history(user_id, query: str) -> SearchHistory:
-    if not user_id or not query or not query.strip():
-        raise ValueError("User ID and a non-empty query are required to add search history.")
+    stripped_query = query.strip()
+    if not user_id or not stripped_query:
+        raise ValueError("User ID and a non-empty query are required.")
 
     try:
-        new_history = SearchHistory.objects.create(
+        history_entry, created = SearchHistory.objects.update_or_create(
             user_id=user_id,
-            query=query.strip()
+            query=stripped_query,
+            defaults={'searched_at': timezone.now()} 
         )
-        logger.info(f"Added search history for user {user_id}: '{query}'")
-        return new_history
+        
+        if created:
+            logger.info(f"Added new search history for user {user_id}: '{stripped_query}'")
+        else:
+            logger.info(f"Updated searched_at for existing history for user {user_id}: '{stripped_query}'")
+            
+        return history_entry
     except Exception as e:
-        logger.error(f"Database error adding search history for user {user_id}: {e}", exc_info=True)
+        logger.error(f"Database error adding/updating search history for user {user_id}: {e}", exc_info=True)
         raise
 
 
