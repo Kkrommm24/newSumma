@@ -1,6 +1,7 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from news.models import NewsSummary
 from summarizer.serializers.serializers import SummarySerializer
@@ -17,7 +18,7 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_summaries(request):
     """Lấy danh sách summary với các tùy chọn lọc và phân trang"""
     try:

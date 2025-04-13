@@ -24,10 +24,10 @@ class DeleteFavoriteKeywordsSerializer(serializers.Serializer):
     keywords = serializers.ListField(
         child=serializers.CharField(max_length=100, allow_blank=False),
         allow_empty=False,
-        help_text="Danh sách các từ khóa cần xóa khỏi danh sách yêu thích."
+        help_text="Danh sách các từ khóa cần xóa."
     )
 
-    def validate_keywords_to_delete(self, value):
+    def validate_keywords(self, value):
         cleaned_keywords = [kw for kw in value if isinstance(kw, str) and kw.strip()]
         if not cleaned_keywords:
              raise serializers.ValidationError("Danh sách từ khóa cần xóa không được rỗng.")

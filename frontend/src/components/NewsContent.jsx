@@ -12,48 +12,60 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
   const [error, setError] = useState(null);
   const [selectedCardId, setSelectedCardId] = useState(null);
   const cardRefs = useRef({});
-  const [offset, setOffset] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchNews = useCallback(async (currentOffset) => {
-    if (currentOffset === 0) {
+  const fetchNews = useCallback(async (pageToFetch) => {
+    if (pageToFetch === 1) {
       setLoading(true);
     }
     setError(null);
+    
+    let url = '';
+    let params = {};
+
     try {
-      let url = '';
       if (fetchMode === 'trending') {
-        url = `/summarizer/summaries/?sort_by=-created_at&limit=${NEWS_PER_PAGE}&offset=${currentOffset}`;
+        url = `/summarizer/summaries/`;
+        params = {
+           sort_by: '-created_at',
+           page: pageToFetch,
+           page_size: NEWS_PER_PAGE
+        }
       } else {
-        url = `/recommender/recommendations/?limit=${NEWS_PER_PAGE}&offset=${currentOffset}`;
+        const currentOffset = (pageToFetch - 1) * NEWS_PER_PAGE;
+        url = `/recommender/recommendations/`;
+        params = {
+            limit: NEWS_PER_PAGE,
+            offset: currentOffset
+        }
       }
       
-      console.log(`Fetching data from: ${url}`);
-      const response = await axiosInstance.get(url);
-      
+      console.log(`Fetching data from: ${url} with params:`, params);
+      const response = await axiosInstance.get(url, { params });
       const data = response.data;
 
       if (data && data.results) {
         const formattedData = data.results.map(item => ({
           id: item.id,
           title: item.title || 'Không có tiêu đề',
-          summary: item.summary_text || 'Không có tóm tắt',
+          summary: item.summary_text || item.summary || 'Không có tóm tắt',
           imageUrl: item.image_url || null,
           sourceUrl: item.url || '#',
           keywords: item.keywords || []
         }));
 
         setNewsItems(prevItems =>
-          currentOffset === 0 ? formattedData : [...prevItems, ...formattedData]
+          pageToFetch === 1 ? formattedData : [...prevItems, ...formattedData]
         );
         setTotalCount(data.count || 0);
-        setHasMore((currentOffset + NEWS_PER_PAGE) < (data.count || 0));
-        setOffset(currentOffset + NEWS_PER_PAGE); 
+        setHasMore((pageToFetch * NEWS_PER_PAGE) < (data.count || 0));
+        setCurrentPage(pageToFetch + 1);
 
       } else {
         setHasMore(false);
-        if (currentOffset === 0) setNewsItems([]);
+        if (pageToFetch === 1) setNewsItems([]);
         console.warn("API response structure might be different:", data);
       }
     } catch (err) {
@@ -66,28 +78,31 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
       setError(errorMessage);
       setHasMore(false);
     } finally {
-      if (currentOffset === 0) {
+      if (pageToFetch === 1) {
         setLoading(false);
       }
     }
   }, [fetchMode]);
 
   useEffect(() => {
-    fetchNews(0);
-  }, [fetchNews]);
+    setNewsItems([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchNews(1);
+  }, [fetchMode, fetchNews]);
 
   useEffect(() => {
     if (selectedCardId && cardRefs.current[selectedCardId]) {
-      cardRefs.current[selectedCardId].scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+        cardRefs.current[selectedCardId].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
     }
   }, [selectedCardId]);
 
   const fetchMoreData = () => {
-    if (!hasMore) return;
-    fetchNews(offset); 
+    if (!hasMore || loading) return;
+    fetchNews(currentPage);
   };
 
   const handleCardClick = (id) => {
@@ -137,7 +152,6 @@ const NewsContent = ({ fetchMode = 'recommendations' }) => {
         )}
       </InfiniteScroll>
 
-      {/* Thông báo cố định ở cuối màn hình khi hết bài viết */}
       {!hasMore && newsItems.length > 0 && (
         <div 
         className="fixed bottom-0 left-0 right-0 bg-gray-100 text-gray-600 text-center py-3"
