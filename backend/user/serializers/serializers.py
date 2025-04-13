@@ -37,7 +37,6 @@ class UserSearchHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = SearchHistory
         fields = ('id', 'query', 'searched_at')
-        # user_id không cần trả về vì nó đã được biết trong context
 
 class DeleteSearchHistorySerializer(serializers.Serializer):
     queries = serializers.ListField(

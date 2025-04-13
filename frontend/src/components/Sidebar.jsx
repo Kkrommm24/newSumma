@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Button, Input, Menu, ConfigProvider } from "antd"
+import { Layout, Button, Input, Menu, ConfigProvider, Dropdown, Spin, List, Typography, message } from "antd"
 import {
   SearchOutlined,
   HomeOutlined,
@@ -15,11 +15,14 @@ import {
   LogoutOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  CloseOutlined
 } from "@ant-design/icons"
 import logo from "../assets/images/logo.png"
 import { useAuth } from '../context/AuthContext.jsx';
+import axiosInstance from "../services/axiosInstance";
 
 const { Sider } = Layout
+const { Text } = Typography;
 
 const gray100 = '#f3f4f6';
 const gray200 = '#e5e7eb';
@@ -29,7 +32,13 @@ const gray600 = '#4b5563';
 const Sidebar = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchHistory, setSearchHistory] = useState([]);
+  const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const inputRef = useRef(null);
 
   const antdMenuItems = [
     { key: '1', icon: <HomeOutlined />, label: "Dành cho bạn", path: '/' },
@@ -48,6 +57,66 @@ const Sidebar = ({ collapsed, onCollapse }) => {
 
   const [activeKey, setActiveKey] = useState(getKeyFromPath(location.pathname));
 
+  const fetchSearchHistory = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setLoadingHistory(true);
+    try {
+      const response = await axiosInstance.get('/user/search-history');
+      setSearchHistory(response.data || []);
+    } catch (error) {
+      console.error("Error fetching search history:", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [isAuthenticated]);
+
+  const addSearchHistory = async (query) => {
+    if (!isAuthenticated || !query || !query.trim()) return;
+    try {
+      await axiosInstance.post('/user/search-history', { query: query.trim() });
+      fetchSearchHistory();
+    } catch (error) {
+      console.error("Error adding search history:", error);
+      message.error("Lỗi khi lưu lịch sử tìm kiếm.");
+    }
+  };
+
+  const deleteSearchHistoryItem = async (queryToDelete) => {
+    if (!isAuthenticated) return;
+    const originalHistory = [...searchHistory];
+    setSearchHistory(prev => prev.filter(item => item.query !== queryToDelete));
+    try {
+      const response = await axiosInstance.delete('/user/search-history', {
+        data: { queries: [queryToDelete] }
+      });
+      if (response.status === 200) {
+        setSearchHistory(response.data);
+      } else {
+        if (response.status !== 404) {
+          fetchSearchHistory();
+        }
+      }
+      message.success(`Đã xóa "${queryToDelete}" khỏi lịch sử.`);
+    } catch (error) {
+      console.error("Error deleting search history item:", error);
+      message.error("Lỗi khi xóa lịch sử tìm kiếm.");
+      setSearchHistory(originalHistory);
+    }
+  };
+
+  useEffect(() => {
+    fetchSearchHistory();
+  }, [fetchSearchHistory]);
+
+  const handleSearch = (value) => {
+    const query = value.trim();
+    if (!query) return;
+    addSearchHistory(query);
+    setIsHistoryVisible(false);
+    inputRef.current?.blur();
+    navigate(`/search?q=${encodeURIComponent(query)}`);
+  };
+
   useEffect(() => {
     setActiveKey(getKeyFromPath(location.pathname));
   }, [location.pathname]);
@@ -63,6 +132,64 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     logout();
     navigate('/login');
   };
+
+  const historyMenu = (
+    <div 
+      className="shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto"
+      style={{
+        width: inputRef.current?.offsetWidth,
+        marginLeft: 20
+      }}
+    >
+       <Spin spinning={loadingHistory}>
+          {(() => {
+             const uniqueQueries = new Set();
+             const uniqueSearchHistory = searchHistory.filter(item => {
+               if (!uniqueQueries.has(item.query.toLowerCase())) {
+                 uniqueQueries.add(item.query.toLowerCase());
+                 return true;
+               }
+               return false;
+             });
+
+             return uniqueSearchHistory.length > 0 ? (
+               <List
+                 style={{
+                   backgroundColor: 'white',
+                   zIndex: 1050,
+                   position: 'relative'
+                 }}
+                 dataSource={uniqueSearchHistory}
+                 renderItem={(item) => (
+                   <List.Item
+                     key={item.id}
+                     className="hover:bg-gray-100 px-3 py-2 flex justify-between items-center"
+                     style={{ 
+                       padding: '12px 16px', 
+                       cursor: 'pointer'
+                     }} 
+                     onClick={() => handleSearch(item.query)}
+                   >
+                     <Text className="truncate flex-grow mr-2">{item.query}</Text>
+                     <Button
+                       type="text"
+                       icon={<CloseOutlined className="text-gray-500 hover:text-red-500" />}
+                       size="small"
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         deleteSearchHistoryItem(item.query);
+                       }}
+                     />
+                   </List.Item>
+                 )}
+               />
+             ) : (
+               !loadingHistory && <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>
+             );
+          })()}
+       </Spin>
+    </div>
+  );
 
   return (
     
@@ -114,12 +241,34 @@ const Sidebar = ({ collapsed, onCollapse }) => {
         <div className="flex flex-col flex-grow justify-between h-[calc(100vh-64px)]" style={{ marginLeft: '10px', marginRight: '10px' }}>
           <div className="flex flex-col">
             <div className="px-4 py-2 mb-2">
-              <Input
-                placeholder="Tìm kiếm"
-                prefix={<SearchOutlined />}
-                className="bg-gray-100 border-none rounded-md focus:bg-white focus:ring-1 focus:ring-blue-500"
-                style={{marginTop: '10px', marginBottom: '10px' }}
-              />
+              <Dropdown
+                overlay={historyMenu}
+                trigger={['click']}
+                open={isHistoryVisible}
+                placement="bottomLeft"
+              >
+                <Input
+                  ref={inputRef}
+                  placeholder="Tìm kiếm"
+                  prefix={<SearchOutlined />}
+                  className="bg-gray-100 border-none rounded-md focus:bg-white focus:ring-1 focus:ring-blue-500"
+                  style={{marginTop: '10px', marginBottom: '10px' }}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={() => {
+                     if (!searchHistory.length && isAuthenticated) {
+                       fetchSearchHistory();
+                     }
+                     setIsHistoryVisible(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setIsHistoryVisible(false);
+                    }, 150);
+                  }}
+                  onPressEnter={(e) => handleSearch(e.target.value)}
+                />
+              </Dropdown>
             </div>
 
             <Menu
