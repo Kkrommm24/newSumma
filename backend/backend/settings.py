@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'crawler',
     'summarizer',
     'authorizer',
-    'recommender'
+    'recommender',
+    'user'
 ]
 
 MIDDLEWARE = [

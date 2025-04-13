@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Layout } from "antd"
-import Sidebar from "./components/Sidebar"
-import "./App.css"
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Layout } from 'antd';
+import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import Trending from './pages/Trending';
 import FavouriteCategories from './pages/FavouriteCategories';
@@ -10,34 +9,105 @@ import Bookmark from './pages/Bookmark';
 import Profile from './pages/Profile';
 import Language from './pages/Language';
 import Theme from './pages/Theme';
+import LoginPage from './pages/LoginPage';
+// import RegisterPage from './pages/RegisterPage';
+// import NotFoundPage from './pages/NotFoundPage';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import ProtectedRoute from './components/ProtectedRoute';
+import "./App.css";
 
-function App() {
+const { Content } = Layout;
+
+const AppContent = () => {
   const [collapsed, setCollapsed] = useState(false);
   const sidebarExpandedWidth = 250;
   const sidebarCollapsedWidth = 80;
-
   const mainContentMarginLeft = collapsed ? sidebarCollapsedWidth : sidebarExpandedWidth;
+  const { isAuthenticated } = useAuth();
 
   return (
-    <BrowserRouter>
-      <Layout className="min-h-screen">
-        <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
-        <Layout style={{ marginLeft: mainContentMarginLeft, transition: 'margin-left 0.2s' }}>
-          <main className="p-4 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/trending" element={<Trending />} />
-              <Route path="/favourite-categories" element={<FavouriteCategories />} />
-              <Route path="/bookmark" element={<Bookmark />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/language" element={<Language />} />
-              <Route path="/theme" element={<Theme />} />
-            </Routes>
-          </main>
-        </Layout>
+    <Layout style={{ minHeight: '100vh' }}>
+      {isAuthenticated && <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />}
+      <Layout style={{ marginLeft: isAuthenticated ? mainContentMarginLeft : 0, transition: 'margin-left 0.2s' }}>
+        <Content style={{ margin: '16px', overflow: 'auto' }}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            {/* <Route path="/register" element={<RegisterPage />} /> */}
+
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trending"
+              element={
+                <ProtectedRoute>
+                  <Trending />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/favourite-categories"
+              element={
+                <ProtectedRoute>
+                  <FavouriteCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bookmark"
+              element={
+                <ProtectedRoute>
+                  <Bookmark />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/language"
+              element={
+                <ProtectedRoute>
+                  <Language />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/theme"
+              element={
+                <ProtectedRoute>
+                  <Theme />
+                </ProtectedRoute>
+              }
+            />
+
+            {isAuthenticated && <Route path="*" element={<Navigate to="/" replace />} />}
+            {!isAuthenticated && <Route path="*" element={<Navigate to="/login" replace />} />}
+          </Routes>
+        </Content>
       </Layout>
-    </BrowserRouter>
-  )
+    </Layout>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
 }
 
 export default App;

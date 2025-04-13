@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react"
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Button, Input, Menu, ConfigProvider } from "antd"
 import {
   SearchOutlined,
@@ -17,6 +17,7 @@ import {
   MenuFoldOutlined,
 } from "@ant-design/icons"
 import logo from "../assets/images/logo.png"
+import { useAuth } from '../context/AuthContext.jsx';
 
 const { Sider } = Layout
 
@@ -26,8 +27,9 @@ const gray800 = '#364254';
 const gray600 = '#4b5563';
 
 const Sidebar = ({ collapsed, onCollapse }) => {
-  const [activeKey, setActiveKey] = useState('1')
   const navigate = useNavigate();
+  const location = useLocation();
+  const { logout } = useAuth();
 
   const antdMenuItems = [
     { key: '1', icon: <HomeOutlined />, label: "Dành cho bạn", path: '/' },
@@ -39,14 +41,29 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     { key: '7', icon: <BgColorsOutlined />, label: "Chủ đề", path: '/theme' },
   ]
 
+  const getKeyFromPath = (pathname) => {
+    const currentItem = antdMenuItems.find(item => item.path === pathname);
+    return currentItem ? currentItem.key : '1';
+  }
+
+  const [activeKey, setActiveKey] = useState(getKeyFromPath(location.pathname));
+
+  useEffect(() => {
+    setActiveKey(getKeyFromPath(location.pathname));
+  }, [location.pathname]);
+
   const handleMenuClick = (e) => {
     const clickedItem = antdMenuItems.find(item => item.key === e.key);
     if (clickedItem && clickedItem.path) {
-      setActiveKey(e.key);
       navigate(clickedItem.path);
     }
   };
   
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     
     <ConfigProvider
@@ -121,6 +138,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
               icon={<LogoutOutlined />}
               className="w-full flex items-center justify-center"
               style={{marginTop: '80px', marginLeft: '15px'}}
+              onClick={handleLogout}
             >
               {!collapsed && "Logout"}
             </Button>

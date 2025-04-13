@@ -45,8 +45,23 @@
   color: #333 !important;
 }
 
-.ant-btn-primary {
-  background-color: #1890ff;
+.ant-btn-primary:not(.ant-input-search-button) {
+   background-color: #1890ff;
+}
+
+/* Đặt màu đen/xám cho nút trong Input.Search */
+.ant-input-search .ant-btn-primary {
+  background-color: #1f2937 !important; /* Màu đen xám */
+  border-color: #1f2937 !important;
+  color: white !important;
+}
+.ant-input-search .ant-btn-primary:hover {
+  background-color: #374151 !important; /* Màu hover */
+  border-color: #374151 !important;
+}
+.ant-input-search .ant-btn-primary:active {
+  background-color: #111827 !important; /* Màu active */
+  border-color: #111827 !important;
 }
 
 .ant-btn-primary.ant-btn-dangerous {

@@ -1,17 +1,17 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated # Assuming authentication is needed
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from recommender.services.recommend_service import get_recommendations_for_user
 
-from recommender.views.pagination import InfiniteScrollPagination
-from news.serializers.serializers import SummarySerializer
+from news.utils.pagination import InfiniteScrollPagination
+from recommender.serializers.serializers import SummarySerializer
 import logging
 
 logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_recommended_articles(request):
     user_id = request.user.id
     if not user_id:
@@ -22,7 +22,7 @@ def get_recommended_articles(request):
 
 
         paginator = InfiniteScrollPagination()
-        paginated_summaries = paginator.paginate_queryset(final_summaries, request, view=None) # Thêm view=None
+        paginated_summaries = paginator.paginate_queryset(final_summaries, request, view=None)
 
         serializer_context = {
             'articles': articles_dict

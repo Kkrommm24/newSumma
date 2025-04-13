@@ -24,4 +24,5 @@ urlpatterns = [
     path("crawler/", include("crawler.urls")),
     path("recommender/", include("recommender.urls")),
     path("summarizer/", include("summarizer.urls")),
+    path("user/", include("user.urls")),
 ]

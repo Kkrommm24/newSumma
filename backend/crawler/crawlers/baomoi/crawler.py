@@ -1,7 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from crawler.utils.check_exist_in_db import check_url_exist, check_category_exist
+from news.utils.check_exist_in_db import check_url_exist, check_category_exist
 from crawler.crawlers.driver import get_driver
 import time
 import logging
