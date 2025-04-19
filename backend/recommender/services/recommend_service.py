@@ -1,5 +1,4 @@
 from recommender.recommenders.recommender import decide_recommendation_strategy
-from news.serializers.serializers import SummarySerializer
 from news.models import NewsArticle, NewsSummary, UserPreference, SearchHistory
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 import logging
@@ -11,6 +10,7 @@ from news.utils.summary_utils import get_latest_summaries, get_articles_for_summ
 
 logger = logging.getLogger(__name__)
 SEARCH_HISTORY_LIMIT = 5
+MIN_RANK_THRESHOLD = 0.05
 
 def _get_user_favorite_keywords(user_id):
     try:
@@ -21,10 +21,12 @@ def _get_user_favorite_keywords(user_id):
 
 def _get_user_search_history_keywords(user_id):
     try:
-        recent_searches = SearchHistory.objects.filter(user_id=user_id).order_by('-searched_at').values_list('query', flat=True).distinct()[:SEARCH_HISTORY_LIMIT]
-        return list(recent_searches)
+        recent_searches = SearchHistory.objects.filter(user_id=user_id).order_by('-searched_at').values_list('query', flat=True)[:SEARCH_HISTORY_LIMIT]
+        queries = list(recent_searches)
+        logger.debug(f"Raw history queries for user {user_id} (ordered desc): {queries}")
+        return queries
     except Exception as e:
-        logger.error(f"Lỗi khi lấy SearchHistory cho user {user_id} trong service: {e}")
+        logger.error(f"Lỗi khi lấy SearchHistory (ordered) cho user {user_id} trong service: {e}")
         return []
 
 def _find_summaries_by_keywords(keywords):
@@ -37,36 +39,37 @@ def _find_summaries_by_keywords(keywords):
             return []
         combined_query = reduce(operator.or_, search_queries)
 
-        ranked_summaries = list(NewsSummary.objects.annotate(
+        summaries_above_threshold = list(NewsSummary.objects.annotate(
             rank=SearchRank(SearchVector('summary_text', config=search_config), combined_query)
         ).filter(
-            search_vector=combined_query
-        ).order_by('-rank'))
+            search_vector=combined_query,
+            rank__gte=MIN_RANK_THRESHOLD
+        ))
 
-        if not ranked_summaries:
-            logger.info(f"[FTS DEBUG] Keywords: '{keywords}', Found: 0 summaries")
+        if not summaries_above_threshold:
+            logger.info(f"[FTS DEBUG] Keywords: '{keywords}', Found: 0 summaries above rank {MIN_RANK_THRESHOLD}")
             return []
 
-        article_ids = [s.article_id for s in ranked_summaries]
+        article_ids = [s.article_id for s in summaries_above_threshold]
         articles_data = NewsArticle.objects.filter(id__in=article_ids).values('id', 'published_at')
         min_datetime = timezone.make_aware(datetime.datetime.min, datetime.timezone.utc)
-        publish_dates = { 
+        publish_dates = {
             str(a['id']): a['published_at'] if a['published_at'] else min_datetime
             for a in articles_data
         }
 
         def sort_key(summary):
             pub_date = publish_dates.get(str(summary.article_id), min_datetime)
-            return (summary.rank, pub_date)
-            
-        sorted_summaries = sorted(ranked_summaries, key=sort_key, reverse=True)
+            return (pub_date, summary.rank)
 
-        logger.info(f"[FTS DEBUG] Keywords: '{keywords}', Type: 'plain' (Combined OR), Config: '{search_config}', Found: {len(sorted_summaries)} summaries (Sorted by overall rank & pub_date)")
+        sorted_summaries = sorted(summaries_above_threshold, key=sort_key, reverse=True)
+
+        logger.info(f"[FTS DEBUG] Keywords: '{keywords}', Type: 'plain', Config: '{search_config}', Found: {len(sorted_summaries)} summaries (Filtered rank >= {MIN_RANK_THRESHOLD}, Sorted by pub_date DESC, rank DESC)")
 
         return sorted_summaries
 
     except Exception as e:
-        logger.error(f"Lỗi khi thực hiện full-text search (combined OR, Python sort) cho keywords '{keywords}' (config: {search_config}) trong service: {e}")
+        logger.error(f"Lỗi khi thực hiện full-text search (rank filter, Python sort pub_date prio) cho keywords '{keywords}' (config: {search_config}) trong service: {e}")
         return []
 
 def get_recommendations_for_user(user_id):
