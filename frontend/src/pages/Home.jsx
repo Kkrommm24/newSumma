@@ -13,7 +13,7 @@ function Home() {
   return (
     <Row justify="center" align="middle" style={{ minHeight: 'calc(100vh - 32px)' }}>
       <Col style={{ maxWidth: '600px', width: '100%' }}>
-        {!searchQuery && <Title level={2}>Dành cho bạn</Title>}
+        {!searchQuery}
         <NewsContent fetchMode="recommendations" searchQuery={searchQuery} />
       </Col>
     </Row>
