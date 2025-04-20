@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Button, Input, Menu, ConfigProvider, Dropdown, Spin, List, Typography, message } from "antd"
+import { Layout, Button, Input, Menu, ConfigProvider, Dropdown, Spin, List, Typography, App } from "antd"
 import {
   SearchOutlined,
   HomeOutlined,
@@ -33,6 +33,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, isAuthenticated } = useAuth();
+  const { message } = App.useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
@@ -111,6 +112,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
   const handleSearch = (value) => {
     const query = value.trim();
     if (!query) return;
+    setSearchTerm(query);
     addSearchHistory(query);
     setIsHistoryVisible(false);
     inputRef.current?.blur();
@@ -133,63 +135,48 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     navigate('/login');
   };
 
-  const historyMenu = (
-    <div 
-      className="shadow-lg rounded-md border border-gray-200 max-h-60 overflow-y-auto"
-      style={{
-        width: inputRef.current?.offsetWidth,
-        marginLeft: 20
-      }}
-    >
-       <Spin spinning={loadingHistory}>
-          {(() => {
-             const uniqueQueries = new Set();
-             const uniqueSearchHistory = searchHistory.filter(item => {
-               if (!uniqueQueries.has(item.query.toLowerCase())) {
-                 uniqueQueries.add(item.query.toLowerCase());
-                 return true;
-               }
-               return false;
-             });
+  const getHistoryMenuItems = () => {
+    const uniqueQueries = new Set();
+    const uniqueSearchHistory = searchHistory.filter(item => {
+      if (item && item.query && !uniqueQueries.has(item.query.toLowerCase())) {
+        uniqueQueries.add(item.query.toLowerCase());
+        return true;
+      }
+      return false;
+    });
 
-             return uniqueSearchHistory.length > 0 ? (
-               <List
-                 style={{
-                   backgroundColor: 'white',
-                   zIndex: 1050,
-                   position: 'relative'
-                 }}
-                 dataSource={uniqueSearchHistory}
-                 renderItem={(item) => (
-                   <List.Item
-                     key={item.id}
-                     className="hover:bg-gray-100 px-3 py-2 flex justify-between items-center"
-                     style={{ 
-                       padding: '12px 16px', 
-                       cursor: 'pointer'
-                     }} 
-                     onClick={() => handleSearch(item.query)}
-                   >
-                     <Text className="truncate flex-grow mr-2">{item.query}</Text>
-                     <Button
-                       type="text"
-                       icon={<CloseOutlined className="text-gray-500 hover:text-red-500" />}
-                       size="small"
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         deleteSearchHistoryItem(item.query);
-                       }}
-                     />
-                   </List.Item>
-                 )}
-               />
-             ) : (
-               !loadingHistory && <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>
-             );
-          })()}
-       </Spin>
-    </div>
-  );
+    if (loadingHistory) {
+        return [{ key: 'loading', label: <div className="text-center p-3"><Spin size="small" /></div>, disabled: true }];
+    }
+
+    if (uniqueSearchHistory.length === 0) {
+        return [{ key: 'no-history', label: <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>, disabled: true }];
+    }
+
+    return uniqueSearchHistory.map((item) => ({
+      key: item.id || item.query,
+      label: (
+        <div className="flex justify-between items-center w-full">
+          <Text
+            className="truncate flex-grow mr-2 cursor-pointer"
+            onClick={() => handleSearch(item.query)}
+          >
+            {item.query}
+          </Text>
+          <Button
+            type="text"
+            icon={<CloseOutlined className="text-gray-500 hover:text-red-500" />}
+            size="small"
+            style={{ flexShrink: 0 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteSearchHistoryItem(item.query);
+            }}
+          />
+        </div>
+      ),
+    }));
+  };
 
   return (
     
@@ -242,10 +229,23 @@ const Sidebar = ({ collapsed, onCollapse }) => {
           <div className="flex flex-col">
             <div className="px-4 py-2 mb-2">
               <Dropdown
-                overlay={historyMenu}
+                menu={{ items: getHistoryMenuItems() }}
                 trigger={['click']}
                 open={isHistoryVisible}
+                onOpenChange={setIsHistoryVisible}
                 placement="bottomLeft"
+                dropdownRender={(menu) => (
+                  <div
+                    className="shadow-lg rounded-md border border-gray-200 bg-white"
+                     style={{
+                        width: inputRef.current?.offsetWidth,
+                        maxHeight: '240px',
+                        overflowY: 'auto'
+                     }}
+                  >
+                    {menu}
+                  </div>
+                )}
               >
                 <Input
                   ref={inputRef}
@@ -261,12 +261,10 @@ const Sidebar = ({ collapsed, onCollapse }) => {
                      }
                      setIsHistoryVisible(true);
                   }}
-                  onBlur={() => {
-                    setTimeout(() => {
+                  onPressEnter={(e) => {
+                      handleSearch(e.target.value);
                       setIsHistoryVisible(false);
-                    }, 150);
                   }}
-                  onPressEnter={(e) => handleSearch(e.target.value)}
                 />
               </Dropdown>
             </div>

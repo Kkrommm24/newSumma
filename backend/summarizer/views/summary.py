@@ -45,7 +45,12 @@ def get_summaries(request):
 
         articles_dict = get_articles_for_summaries(paginated_summaries)
 
-        serializer = SummarySerializer(paginated_summaries, many=True, context={'articles': articles_dict})
+        # Truyền thêm request vào context
+        serializer_context = {
+            'articles': articles_dict,
+            'request': request 
+        }
+        serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
 
         return paginator.get_paginated_response(serializer.data)
 

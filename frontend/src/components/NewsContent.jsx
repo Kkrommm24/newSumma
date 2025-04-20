@@ -50,7 +50,6 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
         }
       }
       
-      console.log(`Fetching data (${currentOperation}) from: ${url} with params:`, params);
       const response = await axiosInstance.get(url, { params });
       const data = response.data;
 
@@ -61,7 +60,11 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
           summary: item.summary_text || item.summary || 'Không có tóm tắt',
           imageUrl: item.image_url || null,
           sourceUrl: item.url || '#',
-          keywords: item.keywords || []
+          keywords: item.keywords || [],
+          publishedAt: item.published_at || null,
+          userVote: item.user_vote === true ? true : item.user_vote === false ? false : null,
+          upvotes: item.upvotes,
+          downvotes: item.downvotes
         }));
 
         setNewsItems(prevItems =>
@@ -94,7 +97,6 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   }, [fetchMode, searchQuery]);
 
   useEffect(() => {
-    console.log(`Mode/Query Change Triggered - Mode: ${fetchMode}, Query: ${searchQuery}`);
     setNewsItems([]);
     setCurrentPage(1);
     setTotalCount(0);
@@ -157,7 +159,11 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
               summary={item.summary}
               imageUrl={item.imageUrl}
               sourceUrl={item.sourceUrl}
+              publishedAt={item.publishedAt}
               isSelected={item.id === selectedCardId}
+              userVote={item.userVote}
+              upvotes={item.upvotes}
+              downvotes={item.downvotes}
             />
           </div>
         ))}

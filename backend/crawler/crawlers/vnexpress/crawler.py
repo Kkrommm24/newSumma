@@ -1,9 +1,9 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from news.utils.check_exist_in_db import check_url_exist, check_category_exist
 from news.utils.parse_datetime import parse_datetime_manual
 from crawler.crawlers.driver import get_driver
+from news.models import NewsArticle, Category
 import time
 import logging
 
@@ -19,66 +19,76 @@ class VNExpressCrawler:
         driver = get_driver()
         
         try:
-            # 1. Mở trang chủ và tìm danh sách bài viết
             self._open_homepage(driver)
-            articles = self._get_article_list(driver, limit)
+            potential_articles_elements = self._get_article_list(driver, limit * 2)
             
-            # 2. Xử lý từng bài viết
-            for i in range(min(limit, len(articles))):
-                try:
-                    logger.info(f"Đang xử lý bài viết {i+1}/{min(limit, len(articles))}")
-                    article = articles[i]
-                    
-                    # 2.1 Scroll để hiển thị bài viết
-                    self._scroll_to_article(driver, article)
-                    
-                    # 2.2 Lấy thông tin cơ bản từ trang chủ
-                    article_info = self._get_basic_info(article)
-                    if not article_info:
-                        continue
-                    
-                    title, url = article_info
-                    
-                    # 2.3 Kiểm tra URL có phải video không
+            basic_infos = []
+            potential_urls = set()
+            for elem in potential_articles_elements:
+                info = self._get_basic_info(elem)
+                if info:
+                    title, url = info
                     if self._is_video_url(url):
                         continue
+                    basic_infos.append(info)
+                    potential_urls.add(url)
+            existing_urls_in_db = set()
+            if potential_urls:
+                try:
+                    existing_urls_in_db = set(NewsArticle.objects.filter(url__in=list(potential_urls)).values_list('url', flat=True))
+                    logger.info(f"Tìm thấy {len(existing_urls_in_db)} URL VNExpress đã tồn tại trong DB từ batch này.")
+                except Exception as db_err:
+                    logger.error(f"Lỗi khi kiểm tra URL VNExpress tồn tại hàng loạt: {db_err}")
+            
+            try:
+                 valid_category_names_in_db = set(Category.objects.values_list('name', flat=True))
+            except Exception as db_err:
+                logger.error(f"Lỗi khi lấy danh sách category hợp lệ: {db_err}")
+                valid_category_names_in_db = set()
+            # -----------------------------------------------------
+
+            processed_count = 0
+            for i in range(len(basic_infos)):
+                if processed_count >= limit:
+                    break 
                     
-                    # 2.4 Kiểm tra URL đã tồn tại
-                    if self._check_existing_url(url):
-                        continue
+                title, url = basic_infos[i]
+
+                if url in existing_urls_in_db:
                     
-                    # 2.5 Mở tab mới và truy cập vào URL bài viết
+                    continue
+
+                # Xử lý chi tiết từng bài viết
+                try:
+                    logger.info(f"Đang xử lý chi tiết bài viết VNExpress {i+1}/{len(basic_infos)} (target: {limit}) - URL: {url}")
+                    
                     if not self._open_article_page(driver, url):
                         continue
                     
-                    # 2.6 Lấy thời gian xuất bản
                     published_at = self._get_published_time(driver, url)
                     if not published_at:
                         self._close_article_tab(driver)
                         continue
                     
-                    # 2.7 Lấy thông tin category
                     category_name = self._get_category(driver, url)
-                    if not category_name:
+                    if not category_name or category_name not in valid_category_names_in_db:
+                        logger.info(f"⏭️ Bỏ qua category không hợp lệ hoặc không tìm thấy cho VNExpress: {category_name}")
                         self._close_article_tab(driver)
+                        self.urls_processed.append({"url": url,"success": False,"reason": f"Category VNExpress không hợp lệ/không tìm thấy: {category_name}"})
                         continue
                     
-                    # 2.8 Lấy nội dung bài viết
                     content = self._get_content(driver, url)
                     if not content:
                         self._close_article_tab(driver)
                         continue
                     
-                    # 2.9 Lấy URL hình ảnh
                     image_url = self._get_image_url(driver, url)
                     if not image_url:
                         self._close_article_tab(driver)
                         continue
                     
-                    # 2.10 Đóng tab và quay lại trang chủ
                     self._close_article_tab(driver)
                     
-                    # 2.11 Thêm bài viết vào kết quả
                     results.append({
                         'title': title,
                         'url': url,
@@ -87,13 +97,12 @@ class VNExpressCrawler:
                         'content': content,
                         'category_name': category_name
                     })
-                    
-                    # 2.12 Ghi log bài viết thành công
+                    processed_count += 1
                     self._log_success(url, title)
+                    existing_urls_in_db.add(url)
                     
-                except Exception as e:
-                    logger.error(f"❌ Lỗi xử lý bài viết thứ {i+1}.")
-                    # Đảm bảo đóng tab nếu đang ở tab bài viết
+                except Exception as detail_err:
+                    logger.error(f"❌ Lỗi xử lý chi tiết bài viết VNExpress {url}: {detail_err}")
                     if len(driver.window_handles) > 1:
                         self._close_article_tab(driver)
                     continue
@@ -102,7 +111,7 @@ class VNExpressCrawler:
         finally:
             # Đảm bảo luôn đóng driver khi hoàn thành
             driver.quit()
-            logger.info(f"Kết thúc crawl: thu thập được {len(results)}/{limit} bài viết")
+            logger.info(f"Kết thúc crawl VNExpress: thu thập được {len(results)} bài viết (target: {limit})")
 
         return results
     
@@ -152,7 +161,6 @@ class VNExpressCrawler:
 
             return title, url
         except Exception as e:
-            logger.warning(f"❌ Không thể lấy thông tin bài viết từ trang chủ.")
             return None
     
     def _is_video_url(self, url):
@@ -161,17 +169,6 @@ class VNExpressCrawler:
                 "url": url,
                 "success": False,
                 "reason": "URL video"
-            })
-            return True
-        return False
-    
-    def _check_existing_url(self, url):
-        if check_url_exist(url):
-            logger.info(f"⏭️ Bỏ qua URL đã tồn tại: {url}")
-            self.urls_processed.append({
-                "url": url,
-                "success": False,
-                "reason": "URL đã tồn tại trong DB"
             })
             return True
         return False
@@ -230,23 +227,9 @@ class VNExpressCrawler:
             
             if category_name == 'SỨC KHỎE':
                 category_name = 'SỨC KHOẺ'
-                
-            if not check_category_exist(category_name):
-                self.urls_processed.append({
-                    "url": url,
-                    "success": False,
-                    "reason": f"Category không tồn tại: {category_name}"
-                })
-                return None
-            
             return category_name
         except Exception as e:
-            logger.warning(f"❌ Không thể lấy thông tin category.")
-            self.urls_processed.append({
-                "url": url,
-                "success": False,
-                "reason": f"Không thể lấy category."
-            })
+            logger.warning(f"❌ Không thể lấy thông tin category cho VNExpress {url}.")
             return None
     
     def _get_content(self, driver, url):

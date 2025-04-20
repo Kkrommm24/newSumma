@@ -6,7 +6,7 @@ from rest_framework import status
 
 from summarizer.services.feedback_service import FeedbackService
 from summarizer.summarizers.llama.tasks import summarize_single_article_task
-from news.models import NewsSummary
+from news.models import NewsSummary, NewsArticle
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +21,12 @@ def record_summary_feedback(request):
 
     if not summary_id:
         return Response({'status': 'error', 'message': 'summary_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    if is_upvote_input is None or not isinstance(is_upvote_input, bool):
-        return Response({'status': 'error', 'message': 'is_upvote (boolean) is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    is_upvote = bool(is_upvote_input)
+    
+    is_upvote = None
+    if is_upvote_input is True:
+        is_upvote = True
+    elif is_upvote_input is False:
+        is_upvote = False
 
     try:
         summary_obj, trigger_resummarize, final_upvotes, final_downvotes = feedback_service.record_feedback_and_check_threshold(
@@ -43,6 +45,15 @@ def record_summary_feedback(request):
                 logger.exception(f"View: Lỗi khi kiểm tra lại summary {summary_id}: {e}")
                 return Response({'status': 'error', 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        article_published_at = None
+        try:
+            article = NewsArticle.objects.get(id=summary_obj.article_id)
+            article_published_at = article.published_at
+        except NewsArticle.DoesNotExist:
+            logger.warning(f"View: Không tìm thấy NewsArticle với ID {summary_obj.article_id} cho summary {summary_obj.id}")
+        except Exception as e:
+             logger.exception(f"View: Lỗi khi lấy NewsArticle {summary_obj.article_id} cho summary {summary_obj.id}: {e}")
+
         if trigger_resummarize:
             try:
                 summarize_single_article_task.delay(article_id_str=str(summary_obj.article_id))
@@ -57,7 +68,8 @@ def record_summary_feedback(request):
             'summary_id': summary_obj.id,
             'upvotes': final_upvotes,
             'downvotes': final_downvotes,
-            'user_vote': is_upvote
+            'user_vote': is_upvote,
+            'published_at': article_published_at
         }, status=status.HTTP_200_OK)
 
     except Exception as e:

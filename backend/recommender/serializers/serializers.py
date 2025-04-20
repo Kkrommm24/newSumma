@@ -23,6 +23,7 @@ class SummarySerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
     keywords = serializers.SerializerMethodField()
+    published_at = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
@@ -34,6 +35,7 @@ class SummarySerializer(serializers.ModelSerializer):
             'image_url',
             'url',
             'keywords',
+            'published_at',
             'upvotes', 
             'downvotes', 
             'created_at'
@@ -53,6 +55,11 @@ class SummarySerializer(serializers.ModelSerializer):
         articles = self.context.get('articles', {})
         article = articles.get(str(obj.article_id))
         return article.url if article else None
+
+    def get_published_at(self, obj):
+        articles = self.context.get('articles', {})
+        article = articles.get(str(obj.article_id))
+        return article.published_at if article else None
 
     def get_keywords(self, obj):
         return getattr(obj, 'source_keywords', [])

@@ -7,6 +7,7 @@ import gc
 import torch
 from news.utils.validators import is_mostly_uppercase, contains_numbered_list
 from django.db import transaction
+from django.contrib.postgres.search import SearchVector, Value
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,16 @@ class SummaryService:
                     }
                 )
                 logger.info(f"Service: Summary for article ID {article.id} {'created' if created else 'updated'}.")
+                
+                if summary: 
+                    summary.search_vector = (
+                        SearchVector('summary_text', weight='A', config='vietnamese') + 
+                        SearchVector(Value(article.title), weight='B', config='vietnamese')
+                    )
+                    summary.save(update_fields=['search_vector'])
+                    logger.info(f"Service: Updated search vector for summary ID {summary.id}.")
+                else:
+                     logger.error(f"Service: Failed to get summary object for article {article.id} after update_or_create.")   
 
             if summary:
                 log_action = "CREATED" if created else "UPDATED (votes reset, old feedback deleted)"
