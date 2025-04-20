@@ -56,8 +56,8 @@ def delete_search_histories(user_id, queries_to_delete: list[str]) -> int:
             
             if deleted_count > 0:
                 logger.info(f"Deleted {deleted_count} search history entries for user {user_id}.")
-            else:
-                logger.info(f"No matching search history entries found to delete for user {user_id} with queries: {queries_to_delete}")
+            # else:
+                # logger.info(f"No matching search history entries found to delete for user {user_id} with queries: {queries_to_delete}")
             
             return deleted_count
 

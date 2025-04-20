@@ -56,14 +56,12 @@ def generate_article_summaries(self, limit=10):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def summarize_single_article_task(self, article_id_str: str):
-    """Celery task để tóm tắt một bài viết cụ thể."""
     logger.info(f"Single Task started: Tóm tắt bài viết ID {article_id_str}")
     
     try:
         article = article_service.get_article_by_id(article_id_str)
         
         if not article:
-            logger.error(f"Single Task: Service không tìm thấy bài viết ID {article_id_str}. Task kết thúc.")
             return {'status': 'error', 'message': 'Article not found by service'}
 
         result_summary = summary_service.process_and_save_summary(article)
@@ -72,7 +70,6 @@ def summarize_single_article_task(self, article_id_str: str):
             logger.info(f"Single Task: Đã xử lý thành công bài viết ID: {article_id_str}")
             return {'status': 'success', 'summary_id': str(result_summary.id)}
         else:
-            logger.error(f"Single Task: SummaryService không thể xử lý/lưu summary cho bài viết ID: {article_id_str}.")
             try:
                 self.retry(countdown=15)
             except Exception as retry_exc:

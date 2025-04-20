@@ -1,36 +1,40 @@
 # backend/news/management/commands/seed_all.py
 
-from django.core.management.base import BaseCommand
+import logging
 from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Seed all initial data by calling other seed commands'
+    help = 'Seeds the database with initial data for all relevant models.'
 
+    SEED_COMMANDS = [
+        'seed_users',
+        'seed_categories',
+        'seed_news_sources',
+        'seed_vnexpress_tasks', 
+        'seed_baomoi_tasks',
+        'seed_summary_tasks',
+        'seed_summary_feedbacks',
+        'seed_user_preferences',
+        'seed_search_histories',
+    ]
+
+    @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("🚀 Bắt đầu seed toàn bộ dữ liệu...\n"))
+        self.stdout.write(self.style.SUCCESS('Starting database seeding process...'))
 
-        self.stdout.write(self.style.NOTICE("👉 Seed categories..."))
-        call_command('seed_categories')
+        for command_name in self.SEED_COMMANDS:
+            self.stdout.write(self.style.HTTP_INFO(f'Running {command_name}...'))
+            try:
+                call_command(command_name)
+                self.stdout.write(self.style.SUCCESS(f'{command_name} completed successfully.'))
+            except Exception as e:
+                logger.exception(f"An error occurred during command: {command_name}")
+                self.stderr.write(self.style.ERROR(f'An error occurred during {command_name}: {e}'))
+                self.stdout.write(self.style.WARNING(f'Skipping remaining commands due to error in {command_name}.'))
+                break
 
-        self.stdout.write(self.style.NOTICE("\n👉 Seed users..."))
-        call_command('seed_users')
-
-        self.stdout.write(self.style.NOTICE("\n👉 Seed user preferences..."))
-        call_command('seed_user_preferences')
-
-        self.stdout.write(self.style.NOTICE("\n👉 Seed search history..."))
-        call_command('seed_search_histories')
-
-        self.stdout.write(self.style.NOTICE("\n👉 Seed news sources..."))
-        call_command('seed_news_sources')
-
-        self.stdout.write(self.style.NOTICE("\n👉 Seed baomoi tasks..."))
-        call_command('seed_baomoi_tasks')
-
-        self.stdout.write(self.style.NOTICE("\n👉 Seed vnexpress tasks..."))
-        call_command('seed_vnexpress_tasks')
-        
-        self.stdout.write(self.style.NOTICE("\n👉 Seed summary tasks..."))
-        call_command('seed_summary_tasks')
-
-        self.stdout.write(self.style.SUCCESS("\n✅ Đã seed xong tất cả dữ liệu!"))
+        self.stdout.write(self.style.SUCCESS('Database seeding process finished.'))

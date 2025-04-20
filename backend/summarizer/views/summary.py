@@ -45,7 +45,12 @@ def get_summaries(request):
 
         articles_dict = get_articles_for_summaries(paginated_summaries)
 
-        serializer = SummarySerializer(paginated_summaries, many=True, context={'articles': articles_dict})
+        # Truyền thêm request vào context
+        serializer_context = {
+            'articles': articles_dict,
+            'request': request 
+        }
+        serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
 
         return paginator.get_paginated_response(serializer.data)
 
@@ -99,8 +104,6 @@ def trigger_single_summarization(request, article_pk):
             
         article_id_str = str(article_pk)
         task = summarize_single_article_task.delay(article_id_str=article_id_str)
-        
-        logger.info(f"View: Đã gửi task tóm tắt đơn lẻ ({task.id}) cho bài viết ID {article_id_str}.")
 
         return Response(
             {

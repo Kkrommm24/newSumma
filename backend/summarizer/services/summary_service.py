@@ -1,16 +1,17 @@
 import logging
-from news.models import NewsSummary, NewsArticle
+from news.models import NewsSummary, NewsArticle, SummaryFeedback
 from django.db.models import Exists, OuterRef
 from django.contrib.postgres.search import SearchVector
 from summarizer.summarizers.llama.article_summary import LlamaSummarizer
 import gc
 import torch
 from news.utils.validators import is_mostly_uppercase, contains_numbered_list
+from django.db import transaction
+from django.contrib.postgres.search import SearchVector, Value
 
 logger = logging.getLogger(__name__)
 
 class SummaryService:
-    fts_search_config = 'vietnamese'
     _summarizer_instance = None
 
     def __init__(self):
@@ -33,8 +34,6 @@ class SummaryService:
         gc.collect()
 
     def process_and_save_summary(self, article: NewsArticle) -> NewsSummary | None:
-        if not article:
-            return None
         try:
             logger.info(f"Service: Processing article ID {article.id} for summary.")
             summarizer = self._get_summarizer()
@@ -54,16 +53,41 @@ class SummaryService:
                 logger.warning(f"Service: Summary for article ID {article.id} discarded (contains numbered list).")
                 return None
 
-            search_vector = SearchVector(summary_text, config=self.fts_search_config)
-            summary, created = NewsSummary.objects.update_or_create(
-                article_id=article.id,
-                defaults={
-                    'summary_text': summary_text,
-                }
-            )
-            
-            log_action = "CREATED" if created else "UPDATED"
-            logger.info(f"Service: Successfully {log_action} summary and vector for article ID {article.id}")
+            summary = None
+            created = False
+            log_action = "FAILED"
+
+            with transaction.atomic():
+                existing_summary = NewsSummary.objects.filter(article_id=article.id).first()
+                if existing_summary:
+                    deleted_feedback_count, _ = SummaryFeedback.objects.filter(summary_id=existing_summary.id).delete()
+                    if deleted_feedback_count > 0:
+                        logger.info(f"Service: Deleted {deleted_feedback_count} old feedback entries for previous summary of article {article.id}.")
+
+                summary, created = NewsSummary.objects.update_or_create(
+                    article_id=article.id,
+                    defaults={
+                        'summary_text': summary_text,
+                        'upvotes': 0,
+                        'downvotes': 0,
+                    }
+                )
+                logger.info(f"Service: Summary for article ID {article.id} {'created' if created else 'updated'}.")
+                
+                if summary: 
+                    summary.search_vector = (
+                        SearchVector('summary_text', weight='A', config='vietnamese') + 
+                        SearchVector(Value(article.title), weight='B', config='vietnamese')
+                    )
+                    summary.save(update_fields=['search_vector'])
+                    logger.info(f"Service: Updated search vector for summary ID {summary.id}.")
+                else:
+                     logger.error(f"Service: Failed to get summary object for article {article.id} after update_or_create.")   
+
+            if summary:
+                log_action = "CREATED" if created else "UPDATED (votes reset, old feedback deleted)"
+                logger.info(f"Service: Successfully {log_action} summary for article ID {article.id}")
+
             return summary
 
         except Exception as e:

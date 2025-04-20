@@ -42,15 +42,10 @@ class LlamaSummarizer:
         
         if not os.path.exists(self.model_path):
             raise ValueError(f"Không tìm thấy thư mục model tại {self.model_path}")
-        
-        logger.info(f"Sử dụng model tại: {self.model_path}")
 
         self.max_input_length = 2048
         self.max_summary_length = 256
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Sử dụng device: {self.device}")
-        if self.device == "cuda":
-            logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
         
         self._load_model()
     
@@ -127,12 +122,10 @@ class LlamaSummarizer:
         # --- Thêm kiểm tra dấu * --- 
         # 1. Kiểm tra nếu bắt đầu bằng dấu *
         if summary.startswith('*'):
-            logger.warning("Tóm tắt bị loại bỏ vì bắt đầu bằng '*'")
             return None
             
         # 2. Kiểm tra nếu chứa nhiều hơn một dấu *
         if summary.count('*') > 1:
-            logger.warning(f"Tóm tắt bị loại bỏ vì chứa nhiều dấu '*': {summary.count('*')}")
             return None
         # -----------------------------
 
@@ -141,14 +134,13 @@ class LlamaSummarizer:
     def summarize(self, content: str) -> Optional[str]:
         try:
             if not content or len(content.strip()) == 0:
-                logger.error("Nội dung bài viết trống")
                 return None
 
             content_preview = content[:100] + "..." if len(content) > 100 else content
             logger.info(f"Đang tóm tắt bài viết: {content_preview}")
-            logger.info(f"Sử dụng device: {self.device}")
+            logger.debug(f"Sử dụng device: {self.device}")
             if self.device == "cuda":
-                logger.info(f"GPU memory đang sử dụng: {torch.cuda.memory_allocated(0)/1024**2:.2f}MB")
+                logger.debug(f"GPU memory đang sử dụng: {torch.cuda.memory_allocated(0)/1024**2:.2f}MB")
 
             prompt = SUMMARY_PROMPT.format(content=content)
 
@@ -179,52 +171,53 @@ class LlamaSummarizer:
                 )
 
             generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-            # Tìm vị trí bắt đầu của phần tóm tắt thực sự
-            summary_start = generated_text.find("Tóm tắt:")
-            if summary_start == -1:
-                logger.error("Không tìm thấy marker 'Tóm tắt:' trong văn bản sinh ra")
-                return None
-                
-            summary_start += len("Tóm tắt:")
-            summary = generated_text[summary_start:].strip()
             
-            # Loại bỏ phần prompt nếu có
-            prompt_markers = [
-                "Lệnh:",
+            summary_marker = "Tóm tắt:"
+            summary_start = generated_text.find(summary_marker)
+            
+            summary = ""
+            if summary_start != -1:
+                summary = generated_text[summary_start + len(summary_marker):].strip()
+            else:
+                logger.warning(f"Không tìm thấy marker '{summary_marker}' trong văn bản sinh ra. Lấy toàn bộ generated_text.")
+                summary = generated_text
+                prompt_end_marker = "### Tóm tắt:"
+                prompt_end_pos = summary.find(prompt_end_marker)
+                if prompt_end_pos != -1:
+                     summary = summary[prompt_end_pos + len(prompt_end_marker):].strip()
+
+            prompt_markers_to_remove = [
+                "### Đây là dạng tóm tắt văn bản tin tức",
+                "### Lệnh:",
                 "Bạn là một trợ lý tóm tắt văn bản",
-                "Hãy cung cấp bản tóm tắt ngắn gọn và chính xác trong 150 chữ cho bài viết sau",
-                "Bài viết:"
+                "Hãy cung cấp bản tóm tắt ngắn gọn",
+                "Bài viết:",
             ]
             
-            for marker in prompt_markers:
-                if marker in summary:
-                    summary = summary.split(marker)[0].strip()
-            
-            # Làm sạch summary
+            for marker in prompt_markers_to_remove:
+                if summary.startswith(marker):
+                     summary = summary[len(marker):].strip()
+
             cleaned_summary = self._clean_summary(summary)
             
-            # Kiểm tra kết quả sau khi làm sạch
-            if not cleaned_summary: 
-                logger.error("Summary không hợp lệ")
+            if not cleaned_summary:
+                logger.warning("Summary bị rỗng sau khi làm sạch.")
                 return None
                 
-            # --- Thêm kiểm tra độ dài tối thiểu --- 
-            min_word_count = 30 
             word_count = len(cleaned_summary.split())
-            if word_count < min_word_count:
-                logger.warning(f"Tóm tắt bị loại bỏ vì quá ngắn")
-                return None
+            if word_count < 10:
+                 logger.warning(f"Summary quá ngắn ({word_count} < 10 từ) sau khi làm sạch.")
+                 return None
 
             if cleaned_summary and not cleaned_summary[0].isalnum():
-                logger.warning(f"Tóm tắt bị loại bỏ vì ký tự đầu tiên không phải chữ/số: '{cleaned_summary[0]}'")
-                return None
+                 logger.warning("Summary bắt đầu bằng ký tự không phải chữ/số sau khi làm sạch.")
+                 return None
 
             try:
                 language = detect(cleaned_summary)
                 if language == 'en':
-                    logger.warning(f"Tóm tắt bị loại bỏ vì là tiếng Anh: {cleaned_summary[:50]}...")
-                    return None
+                     logger.warning("Summary được phát hiện là tiếng Anh.")
+                     return None
             except LangDetectException:
                 logger.warning(f"Không thể xác định ngôn ngữ của tóm tắt")
                 return None

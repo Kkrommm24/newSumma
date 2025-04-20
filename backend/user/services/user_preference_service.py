@@ -10,7 +10,7 @@ def get_user_preference(user_id) -> UserPreference:
     try:
         return UserPreference.objects.get(user_id=user_id)
     except UserPreference.DoesNotExist:
-        logger.info(f"UserPreference not found for user {user_id}. This might be expected.")
+
         raise
     except Exception as e:
         logger.error(f"Database error fetching preference for user {user_id}: {e}", exc_info=True)
@@ -43,9 +43,6 @@ def add_favorite_keywords(user_id, keywords_to_add: list[str]) -> UserPreference
             if new_keywords_added:
                 preference.favorite_keywords = current_keywords
                 preference.save(update_fields=['favorite_keywords', 'updated_at'])
-                logger.info(f"Added keywords for user {user_id}. New list length: {len(preference.favorite_keywords)}")
-            else:
-                logger.info(f"No new keywords to add for user {user_id}. Keywords provided: {keywords_to_add}")
 
         return preference
 
@@ -62,7 +59,6 @@ def delete_favorite_keywords(user_id, keywords_to_delete: list[str]) -> UserPref
             try:
                 preference = UserPreference.objects.get(user_id=user_id)
             except UserPreference.DoesNotExist:
-                logger.info(f"UserPreference not found for user {user_id}. No keywords to delete.")
                 return UserPreference(user_id=user_id, favorite_keywords=[]) 
 
             current_keywords = preference.favorite_keywords or []
@@ -83,12 +79,8 @@ def delete_favorite_keywords(user_id, keywords_to_delete: list[str]) -> UserPref
             if keywords_were_deleted:
                 preference.favorite_keywords = updated_keywords
                 preference.save(update_fields=['favorite_keywords', 'updated_at'])
-                logger.info(f"Deleted keywords for user {user_id}. New list length: {len(preference.favorite_keywords)}")
-            else:
-                logger.info(f"No matching keywords found to delete for user {user_id}. Keywords provided: {keywords_to_delete}")
 
         return preference
 
     except Exception as e:
-        logger.error(f"Database error deleting keywords for user {user_id}: {e}", exc_info=True)
         raise 
