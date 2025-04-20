@@ -64,8 +64,6 @@ def _find_summaries_by_keywords(keywords):
 
         sorted_summaries = sorted(summaries_above_threshold, key=sort_key, reverse=True)
 
-        logger.info(f"[FTS DEBUG] Keywords: '{keywords}', Type: 'plain', Config: '{search_config}', Found: {len(sorted_summaries)} summaries (Filtered rank >= {MIN_RANK_THRESHOLD}, Sorted by pub_date DESC, rank DESC)")
-
         return sorted_summaries
 
     except Exception as e:

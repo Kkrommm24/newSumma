@@ -96,16 +96,12 @@ class BaomoiCrawler:
         return results
     
     def _open_homepage(self, driver):
-        """Mở trang chủ Baomoi"""
-        logger.info(f"Đang mở trang chủ {self.base_url}")
         driver.get(self.base_url)
         WebDriverWait(driver, 20).until(
             EC.presence_of_all_elements_located((By.XPATH, '//h3[@class="font-semibold block"]/a'))
         )
-        logger.info("Đã tải trang chủ thành công")
     
     def _get_article_list(self, driver, limit):
-        logger.info("Đợi trang tải đầy đủ các bài viết...")
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, '//div[contains(@class,"group/card")]'))
         )
@@ -126,11 +122,9 @@ class BaomoiCrawler:
                             parent = h3.find_element(By.XPATH, './ancestor::div[contains(@class,"group/card")]')
                             articles.append(parent)
                         except:
-                            continue          
-            logger.info(f"Đã tìm thấy {len(articles)} bài viết trên trang")
+                            continue
             
             if len(articles) < limit:
-                logger.info("Số bài viết không đủ, đang cuộn trang để tải thêm")
                 attempts = 0
                 while len(articles) < limit and attempts < 5:
                     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -138,7 +132,6 @@ class BaomoiCrawler:
                     articles = driver.find_elements(By.XPATH, '//div[contains(@class,"group/card") and contains(@class,"bm-card")]')
                     if not articles:
                         articles = driver.find_elements(By.XPATH, '//div[contains(@class,"group/card")]')
-                    logger.info(f"Sau khi cuộn: tìm thấy {len(articles)} bài viết")
                     attempts += 1
             return articles
         except Exception as e:
@@ -148,24 +141,18 @@ class BaomoiCrawler:
     def _scroll_to_article(self, driver, article):
         try:
             if not article:
-                logger.warning("Đối tượng article không tồn tại, bỏ qua bước cuộn")
                 return
-                
-            logger.info("Đang cuộn đến bài viết")
             try:
                 driver.execute_script("return arguments[0].tagName", article)
             except:
-                logger.warning("Phần tử article không còn tồn tại trong DOM")
                 return
-                
-            # Sử dụng JavaScript để cuộn đến phần tử
+
             try:
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", article)
                 time.sleep(1.5)  # Tăng thời gian chờ sau khi cuộn
             except Exception as e:
                 logger.warning(f"Không thể sử dụng scrollIntoView.")
                 
-                # Phương pháp thay thế - cuộn dựa trên offset
                 try:
                     y_position = driver.execute_script("return arguments[0].getBoundingClientRect().top + window.pageYOffset;", article)
                     driver.execute_script(f"window.scrollTo(0, {y_position - 200});")
@@ -184,8 +171,6 @@ class BaomoiCrawler:
             
             time_tag = article.find_element(By.XPATH, './/time[contains(@class, "content-time")]')
             published_at = time_tag.get_attribute("datetime")
-            
-            logger.info(f"Đã lấy thông tin cơ bản: {title}")
             return title, url, published_at
         except Exception as e:
             logger.warning(f"❌ Không thể lấy thông tin bài viết từ trang chủ.")
@@ -206,7 +191,6 @@ class BaomoiCrawler:
     def _open_article_page(self, driver, url):
         """Mở tab mới và truy cập vào URL bài viết"""
         try:
-            logger.info(f"Đang mở tab mới để truy cập: {url}")
             driver.execute_script("window.open('');")
             driver.switch_to.window(driver.window_handles[1])
             driver.get(url)
@@ -248,8 +232,6 @@ class BaomoiCrawler:
                     "reason": f"Category không tồn tại: {category_name}"
                 })
                 return None
-            
-            logger.info(f"Đã lấy category: {category_name}")
             return category_name
         except Exception as e:
             logger.warning(f"❌ Không thể lấy thông tin category.")
@@ -263,19 +245,14 @@ class BaomoiCrawler:
     def _get_content(self, driver, url):
         """Lấy nội dung bài viết"""
         main_content = driver.find_element(By.XPATH, '//div[contains(@class,"content-main relative")]')
-        logger.info(f"Đã tìm thấy main_content cho {url}")
         
         # Thử lấy paragraphs bằng XPath chính
         paragraphs = main_content.find_elements(By.XPATH, './/p[contains(@class, "text") and not(contains(@class, "body-author"))]')
 
         content = "\n\n".join([p.text.strip() for p in paragraphs if p.text.strip()])
         
-        # Nếu vẫn không có nội dung, thử lấy toàn bộ text của main_content
         if not content:
-            logger.warning(f"Không tìm thấy nội dung qua paragraphs, thử lấy toàn bộ text")
             content = main_content.text
-        
-        # Kiểm tra nội dung trống
         if not content:
             logger.warning(f"❌ Không thể lấy content cho {url}")
             self.urls_processed.append({
@@ -284,8 +261,6 @@ class BaomoiCrawler:
                 "reason": "Không thể lấy content"
             })
             return None
-        
-        logger.info(f"Đã lấy nội dung bài viết ({len(content)} ký tự)")
         return content
     
     def _get_image_url(self, driver, url):
@@ -295,18 +270,14 @@ class BaomoiCrawler:
             main_content = driver.find_element(By.XPATH, '//div[contains(@class,"content-main relative")]')
             img_elem = main_content.find_element(By.XPATH, './/img[contains(@src, ".j") and contains(@alt, "")]')
             image_url = img_elem.get_attribute("src")
-            logger.info(f"Đã lấy được ảnh từ main-content: {image_url}")
             return image_url
         except Exception:
-            # Phương pháp 2: Tìm bất kỳ ảnh nào
             try:
-                logger.info("Thử tìm ảnh bằng phương pháp khác")
                 img_elem = driver.find_element(
                     By.XPATH,
                     '//img[contains(@src, ".jpg") or contains(@src, ".png") or contains(@src, ".jpeg")]'
                 )
                 image_url = img_elem.get_attribute("src")
-                logger.info(f"Đã lấy được ảnh bằng phương pháp 2: {image_url}")
                 return image_url
             except Exception as e:
                 logger.warning(f"❌ Không thể lấy ảnh đại diện.")
@@ -324,7 +295,6 @@ class BaomoiCrawler:
             driver.switch_to.window(driver.window_handles[0])
         except Exception as e:
             logger.error(f"❌ Lỗi khi đóng tab.")
-            # Cố gắng phục hồi bằng cách quay lại tab đầu tiên
             if len(driver.window_handles) > 0:
                 driver.switch_to.window(driver.window_handles[0])
     

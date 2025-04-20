@@ -99,8 +99,6 @@ def trigger_single_summarization(request, article_pk):
             
         article_id_str = str(article_pk)
         task = summarize_single_article_task.delay(article_id_str=article_id_str)
-        
-        logger.info(f"View: Đã gửi task tóm tắt đơn lẻ ({task.id}) cho bài viết ID {article_id_str}.")
 
         return Response(
             {

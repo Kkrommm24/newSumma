@@ -1,9 +1,9 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
-from django.contrib.postgres.search import SearchVector, SearchVectorField
+from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
-from django.utils import timezone
+from django.contrib.postgres.search import SearchVector
 
 # Custom User Manager
 class UserManager(BaseUserManager):
@@ -103,14 +103,7 @@ class NewsSummary(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Summary for {self.article.title}"
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if 'update_fields' not in kwargs or 'summary_text' in kwargs['update_fields']:
-            NewsSummary.objects.filter(pk=self.pk).update(
-                search_vector=SearchVector('summary_text', config='vietnamese') 
-            )
+        return f"Summary ({self.id}): {self.summary_text[:60]}..."
 
 class UserSavedArticle(models.Model):
     user_id = models.UUIDField()

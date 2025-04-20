@@ -14,12 +14,28 @@ class Command(BaseCommand):
             {"username": "admin", "email": "admin@example.com", "password": DEFAULT_PASSWORD, "is_staff": True, "is_superuser": True},
             {"username": "testuser1", "email": "test1@example.com", "password": DEFAULT_PASSWORD},
             {"username": "hunghdg215062", "email": "hdghung2912@gmail.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser2", "email": "test2@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser3", "email": "test3@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser4", "email": "test4@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser5", "email": "test5@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser6", "email": "test6@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser7", "email": "test7@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser8", "email": "test8@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser9", "email": "test9@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser10", "email": "test10@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser11", "email": "test11@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser12", "email": "test12@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser13", "email": "test13@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser14", "email": "test14@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser15", "email": "test15@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser16", "email": "test16@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser17", "email": "test17@example.com", "password": DEFAULT_PASSWORD},
+            {"username": "testuser18", "email": "test18@example.com", "password": DEFAULT_PASSWORD},
         ]
 
         try:
             with transaction.atomic():
                 self.stdout.write("🗑️  Đang xóa tất cả User cũ...")
-                # Delete all users before seeding new ones
                 User.objects.all().delete()
                 self.stdout.write("✔ Đã xóa User cũ.")
 
@@ -38,7 +54,6 @@ class Command(BaseCommand):
                                 username=username,
                                 email=email,
                                 password=password,
-                                # create_superuser sets is_staff and is_superuser to True by default
                             )
                         else:
                             User.objects.create_user(

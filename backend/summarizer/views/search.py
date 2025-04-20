@@ -59,7 +59,6 @@ class ArticleSummarySearchView(APIView):
             serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
 
             count = paginator.page.paginator.count if hasattr(paginator, 'page') else queryset.count()
-            logger.info(f"Found {count} summary results for query: {query}")
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:

@@ -13,6 +13,7 @@ import os
 import environ
 from pathlib import Path
 from datetime import timedelta
+from kombu import Queue
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
@@ -144,12 +145,13 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery settings
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", default="redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
 AUTH_USER_MODEL = 'news.User'
@@ -159,4 +161,33 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+}
+
+CELERY_TASK_QUEUES = (
+    Queue('default', routing_key='task.#'),
+    Queue('high_priority', routing_key='high_priority.#'),
+    Queue('low_priority', routing_key='low_priority.#'),
+)
+
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_DEFAULT_EXCHANGE = 'tasks'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'task.default'
+
+CELERY_TASK_ROUTES = {
+    'summarizer.summarizers.llama.tasks.summarize_single_article_task': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.summarize_single',
+    },
+    'summarizer.summarizers.llama.tasks.generate_article_summaries': {
+        'queue': 'low_priority',
+        'routing_key': 'low_priority.generate_bulk',
+    },
+    'crawler.crawlers.baomoi.tasks.crawl_baomoi_articles': {
+         'queue': 'low_priority',
+         'routing_key': 'low_priority.crawl_baomoi',
+    },
+     'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
+         'queue': 'low_priority',
+         'routing_key': 'low_priority.crawl_vnexpress',
+    },
 }

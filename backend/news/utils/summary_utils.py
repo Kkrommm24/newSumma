@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 def get_latest_summaries(limit=100):
     try:
         summaries = NewsSummary.objects.order_by('-created_at')[:limit]
-        logger.info(f"Utils: Lấy {len(summaries)} summaries mới nhất (giới hạn {limit}).")
         return list(summaries)
     except Exception as e:
         logger.error(f"Lỗi khi lấy latest summaries trong utils: {e}")
