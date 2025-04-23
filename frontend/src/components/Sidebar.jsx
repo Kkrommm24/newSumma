@@ -47,8 +47,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     { key: '3', icon: <HeartOutlined />, label: "Danh mục yêu thích", path: '/favourite-categories' },
     { key: '4', icon: <BookOutlined />, label: "Bookmark", path: '/bookmark' },
     { key: '5', icon: <UserOutlined />, label: "Trang cá nhân", path: '/profile' },
-    { key: '6', icon: <GlobalOutlined />, label: "Ngôn ngữ", path: '/language' },
-    { key: '7', icon: <BgColorsOutlined />, label: "Chủ đề", path: '/theme' },
+    { key: '6', icon: <BgColorsOutlined />, label: "Chủ đề", path: '/theme' },
   ]
 
   const getKeyFromPath = (pathname) => {
