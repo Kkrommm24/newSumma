@@ -8,7 +8,6 @@ from django.contrib.postgres.search import SearchVector
 # Custom User Manager
 class UserManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
-        """Creates and saves a new user"""
         if not username:
             raise ValueError('Users must have a username')
         if not email:
@@ -21,10 +20,9 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, username, email, password=None, **extra_fields):
-        """Creates and saves a new superuser"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True) # Ensure superuser is active
+        extra_fields.setdefault('is_active', True)
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')

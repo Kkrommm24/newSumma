@@ -50,9 +50,6 @@ class LlamaSummarizer:
         self._load_model()
     
     def _load_model(self):
-        """
-        Tải mô hình và tokenizer
-        """
         try:
             adapter_config_path = os.path.join(self.model_path, 'adapter_config.json')
             if not os.path.exists(adapter_config_path):
@@ -97,7 +94,6 @@ class LlamaSummarizer:
             raise
     
     def _clean_summary(self, summary: str) -> Optional[str]:
-        """Làm sạch summary bằng cách loại bỏ các phần không mong muốn và kiểm tra dấu *"""
         # Loại bỏ các dòng đánh số
         summary = re.sub(r'^\d+\.\s*', '', summary, flags=re.MULTILINE)
         

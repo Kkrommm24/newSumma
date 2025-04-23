@@ -116,14 +116,12 @@ class VNExpressCrawler:
         return results
     
     def _open_homepage(self, driver):
-        """Mở trang chủ VNExpress"""
         driver.get(self.base_url)
         WebDriverWait(driver, 15).until(
             EC.presence_of_all_elements_located((By.XPATH, '//article'))
         )
     
     def _get_article_list(self, driver, limit):
-        """Lấy danh sách bài viết từ trang chủ"""
         try:
             articles = driver.find_elements(By.XPATH, '//article')
             return articles
@@ -132,7 +130,6 @@ class VNExpressCrawler:
             return []
     
     def _scroll_to_article(self, driver, article):
-        """Cuộn trang đến bài viết cần xử lý"""
         try:
             if not article:
                 return
@@ -152,7 +149,6 @@ class VNExpressCrawler:
             logger.warning(f"❌ Không thể cuộn đến bài viết.")
     
     def _get_basic_info(self, article):
-        """Lấy thông tin cơ bản của bài viết từ trang chủ"""
         try:
             title_elem = article.find_element(By.XPATH, './/h3[contains(@class, "title-news")]')
             title = title_elem.text.strip()
@@ -174,7 +170,6 @@ class VNExpressCrawler:
         return False
     
     def _open_article_page(self, driver, url):
-        """Mở tab mới và truy cập vào URL bài viết"""
         try:
             driver.execute_script("window.open('');")
             driver.switch_to.window(driver.window_handles[1])
@@ -206,7 +201,6 @@ class VNExpressCrawler:
             return False
     
     def _get_published_time(self, driver, url):
-        """Lấy thời gian xuất bản của bài viết"""
         try:
             datetime_elem = driver.find_element(By.XPATH, '//span[contains(@class, "date")]')
             published_at = parse_datetime_manual(datetime_elem.text.strip())
@@ -256,7 +250,6 @@ class VNExpressCrawler:
             return None
     
     def _get_image_url(self, driver, url):
-        """Lấy URL hình ảnh của bài viết"""
         try:
             # Phương pháp 1: Tìm ảnh có đuôi .jpg, .jpeg, .png và alt
             img_elem = driver.find_element(By.XPATH, './/img[contains(@src, ".j") and contains(@alt, "")]')
@@ -280,7 +273,6 @@ class VNExpressCrawler:
                 return None
     
     def _close_article_tab(self, driver):
-        """Đóng tab bài viết và quay lại trang chủ"""
         try:
             driver.close()
             driver.switch_to.window(driver.window_handles[0])
@@ -291,7 +283,6 @@ class VNExpressCrawler:
                 driver.switch_to.window(driver.window_handles[0])
     
     def _log_success(self, url, title):
-        """Ghi log bài viết crawl thành công"""
         self.urls_processed.append({
             "url": url,
             "success": True,

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from news.models import UserPreference, SearchHistory
+from news.models import UserPreference, SearchHistory, UserSavedArticle, NewsArticle, Category, NewsArticleCategory
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,3 +51,47 @@ class AddSearchHistorySerializer(serializers.Serializer):
         if not value.strip():
             raise serializers.ValidationError("Query cannot be empty or just whitespace.")
         return value.strip()
+
+class AddBookmarkSerializer(serializers.Serializer):
+    article_id = serializers.UUIDField(required=True)
+
+    def validate_article_id(self, value):
+        if not NewsArticle.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Bài viết không tồn tại.")
+        return value
+
+class DeleteBookmarkSerializer(serializers.Serializer):
+    article_id = serializers.UUIDField(required=True)
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name']
+
+class BookmarkedArticleSerializer(serializers.ModelSerializer):
+    categories = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NewsArticle
+        fields = ['id', 'title', 'url', 'published_at', 'image_url', 'categories']
+
+    def get_categories(self, obj):
+        category_ids = NewsArticleCategory.objects.filter(article_id=obj.id).values_list('category_id', flat=True)
+        categories = Category.objects.filter(id__in=category_ids)
+        
+        return CategorySerializer(categories, many=True).data
+    
+
+class UserBookmarkSerializer(serializers.ModelSerializer):
+    article = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSavedArticle
+        fields = ['article']
+
+    def get_article(self, obj):
+        try:
+            article = NewsArticle.objects.get(id=obj.article_id)
+            return BookmarkedArticleSerializer(article).data
+        except NewsArticle.DoesNotExist:
+            return None

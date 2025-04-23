@@ -45,7 +45,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Lỗi: {str(e)}"))
     
     def _check_gpu_status(self):
-        """Kiểm tra chi tiết về GPU"""
         self.stdout.write("=" * 50)
         self.stdout.write(self.style.SUCCESS("KIỂM TRA TRẠNG THÁI GPU"))
         self.stdout.write("=" * 50)

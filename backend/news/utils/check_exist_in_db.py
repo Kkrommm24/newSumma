@@ -5,9 +5,6 @@ from django.db import connection
 logger = logging.getLogger(__name__)
 
 def check_url_exist(url):
-    """
-    Kiểm tra xem một URL đã tồn tại trong database hay chưa
-    """
     try:
         return NewsArticle.objects.filter(url=url).exists()
     except Exception as e:
@@ -22,9 +19,6 @@ def check_url_exist(url):
             return False
         
 def check_category_exist(name):
-    """
-    Kiểm tra xem một category đã tồn tại trong database hay chưa
-    """
     try:
         return Category.objects.filter(name=name).exists()
     except Exception as e:

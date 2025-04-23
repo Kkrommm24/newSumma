@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from news.models import NewsSummary
-from summarizer.serializers.serializers import SummarySerializer
+from news.serializers.serializers import SummarySerializer
 from summarizer.services.article_service import ArticleService
 from summarizer.summarizers.llama.tasks import generate_article_summaries, summarize_single_article_task
 import logging
@@ -20,7 +20,6 @@ class StandardResultsSetPagination(PageNumberPagination):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_summaries(request):
-    """Lấy danh sách summary với các tùy chọn lọc và phân trang"""
     try:
         article_id_param = request.GET.get('article_id')
         sort_by = request.GET.get('sort_by', '-created_at')
@@ -68,7 +67,6 @@ def get_summaries(request):
 @api_view(['POST'])
 # @permission_classes([IsAuthenticated])
 def trigger_bulk_summarization(request):
-    """API endpoint để kích hoạt tác vụ Celery tóm tắt hàng loạt."""
     try:
         limit = request.data.get('limit', 10)
         task = generate_article_summaries.delay(limit=limit)

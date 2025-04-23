@@ -28,7 +28,6 @@ class SummaryService:
         return self._summarizer_instance
 
     def _cleanup_memory(self):
-        """Dọn dẹp bộ nhớ GPU nếu có."""
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()

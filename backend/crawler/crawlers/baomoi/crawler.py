@@ -172,7 +172,6 @@ class BaomoiCrawler:
             logger.warning(f"❌ Không thể cuộn đến bài viết.")
     
     def _get_basic_info(self, article):
-        """Lấy thông tin cơ bản của bài viết từ trang chủ"""
         try:
             a_tag = article.find_element(By.XPATH, './/h3[@class="font-semibold block"]/a')
             title = a_tag.get_attribute("title")
@@ -185,7 +184,6 @@ class BaomoiCrawler:
             return None
     
     def _open_article_page(self, driver, url):
-        """Mở tab mới và truy cập vào URL bài viết"""
         try:
             driver.execute_script("window.open('');")
             driver.switch_to.window(driver.window_handles[1])
@@ -224,7 +222,6 @@ class BaomoiCrawler:
             return None
     
     def _get_content(self, driver, url):
-        """Lấy nội dung bài viết"""
         main_content = driver.find_element(By.XPATH, '//div[contains(@class,"content-main relative")]')
         
         # Thử lấy paragraphs bằng XPath chính
@@ -245,7 +242,6 @@ class BaomoiCrawler:
         return content
     
     def _get_image_url(self, driver, url):
-        """Lấy URL hình ảnh của bài viết"""
         try:
             # Phương pháp 1: Tìm trong main-content
             main_content = driver.find_element(By.XPATH, '//div[contains(@class,"content-main relative")]')
@@ -270,7 +266,6 @@ class BaomoiCrawler:
                 return None
     
     def _close_article_tab(self, driver):
-        """Đóng tab bài viết và quay lại trang chủ"""
         try:
             driver.close()
             driver.switch_to.window(driver.window_handles[0])
@@ -280,7 +275,6 @@ class BaomoiCrawler:
                 driver.switch_to.window(driver.window_handles[0])
     
     def _log_success(self, url, title):
-        """Ghi log bài viết crawl thành công"""
         logger.info(f"✅ Crawl thành công: {title}")
         self.urls_processed.append({
             "url": url,
