@@ -7,7 +7,6 @@ import Trending from './pages/Trending';
 import FavouriteCategories from './pages/FavouriteCategories';
 import Bookmark from './pages/Bookmark';
 import Profile from './pages/Profile';
-import Language from './pages/Language';
 import Theme from './pages/Theme';
 import LoginPage from './pages/LoginPage';
 // import RegisterPage from './pages/RegisterPage';
@@ -29,7 +28,7 @@ const AppContent = () => {
     <Layout style={{ minHeight: '100vh' }}>
       {isAuthenticated && <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />}
       <Layout style={{ marginLeft: isAuthenticated ? mainContentMarginLeft : 0, transition: 'margin-left 0.2s' }}>
-        <Content style={{ margin: '16px', overflow: 'auto' }}>
+        <Content style={{ margin: '1vh', overflow: 'auto' }}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             {/* <Route path="/register" element={<RegisterPage />} /> */}
@@ -71,14 +70,6 @@ const AppContent = () => {
               element={
                 <ProtectedRoute>
                   <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/language"
-              element={
-                <ProtectedRoute>
-                  <Language />
                 </ProtectedRoute>
               }
             />

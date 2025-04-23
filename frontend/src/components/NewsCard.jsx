@@ -150,8 +150,8 @@ const NewsCard = ({ id, title, summary, imageUrl, sourceUrl, publishedAt, userVo
         cover={imageUrl ? <img alt={title} src={imageUrl} className="h-24 w-full object-cover" /> : null}
         size='small'
         style={{
-          marginBottom: '30px',
-          marginTop: '30px',
+          marginBottom: '3vh',
+          marginTop: '3vh',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
           transition: 'transform 0.2s',
