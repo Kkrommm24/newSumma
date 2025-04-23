@@ -9,9 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
-# @permission_classes([IsAdminUser]) # Chỉ admin mới được trigger crawl
+@permission_classes([IsAdminUser])
 def trigger_crawl_baomoi(request):
-    """API POST để crawl Báo Mới sử dụng Celery task"""
     try:
         logger.info("View: Bắt đầu trigger crawl dữ liệu từ Báo Mới")
         task = crawl_baomoi_articles.delay()
@@ -30,9 +29,8 @@ def trigger_crawl_baomoi(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-# @permission_classes([IsAdminUser]) # Chỉ admin mới được trigger crawl
+@permission_classes([IsAdminUser])
 def trigger_crawl_vnexpress(request):
-    """API POST để crawl VnExpress sử dụng Celery task"""
     try:
         logger.info("View: Bắt đầu trigger crawl dữ liệu từ VnExpress")
         task = crawl_vnexpress_articles.delay()

@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from recommender.services.recommend_service import get_recommendations_for_user
 
 from news.utils.pagination import InfiniteScrollPagination
-from recommender.serializers.serializers import SummarySerializer
+from news.serializers.serializers import SummarySerializer
 import logging
 
 logger = logging.getLogger(__name__)

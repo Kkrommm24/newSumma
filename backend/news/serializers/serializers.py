@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, User
+from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, SummaryFeedback, User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -40,6 +40,8 @@ class SummarySerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
     keywords = serializers.SerializerMethodField()
+    published_at = serializers.SerializerMethodField()
+    user_vote = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
@@ -51,9 +53,11 @@ class SummarySerializer(serializers.ModelSerializer):
             'image_url',
             'url',
             'keywords',
+            'published_at',
             'upvotes', 
             'downvotes', 
-            'created_at'
+            'created_at',
+            'user_vote'
         ]
 
     def get_title(self, obj):
@@ -71,8 +75,25 @@ class SummarySerializer(serializers.ModelSerializer):
         article = articles.get(str(obj.article_id))
         return article.url if article else None
 
+    def get_published_at(self, obj):
+        articles = self.context.get('articles', {})
+        article = articles.get(str(obj.article_id))
+        return article.published_at if article else None
+
     def get_keywords(self, obj):
         return getattr(obj, 'source_keywords', [])
+
+    def get_user_vote(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                feedback = SummaryFeedback.objects.get(summary_id=obj.id, user_id=request.user.id)
+                return feedback.is_upvote
+            except SummaryFeedback.DoesNotExist:
+                return None
+            except Exception as e:
+                return None
+        return None
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     pass
