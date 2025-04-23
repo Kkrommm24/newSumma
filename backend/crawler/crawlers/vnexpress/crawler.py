@@ -14,7 +14,7 @@ class VNExpressCrawler:
         self.base_url = base_url
         self.urls_processed = []
         
-    def crawl(self, limit=20):
+    def crawl(self, limit=10):
         results = []
         driver = get_driver()
         
@@ -53,14 +53,16 @@ class VNExpressCrawler:
                     break 
                     
                 title, url = basic_infos[i]
+                
+                if not title or not url:
+                    continue
 
                 if url in existing_urls_in_db:
-                    
                     continue
 
                 # Xử lý chi tiết từng bài viết
                 try:
-                    logger.info(f"Đang xử lý chi tiết bài viết VNExpress {i+1}/{len(basic_infos)} (target: {limit}) - URL: {url}")
+                    logger.info(f"Đang xử lý chi tiết bài viết VNExpress - URL: {url}")
                     
                     if not self._open_article_page(driver, url):
                         continue

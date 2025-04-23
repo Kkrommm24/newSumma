@@ -49,20 +49,23 @@ class BaomoiCrawler:
                     break
                     
                 title, url, published_at = basic_infos[i]
+                
+                if not title or not url or not published_at:
+                    continue
 
                 if url in existing_urls_in_db:
-                    logger.info(f"⏭️ Bỏ qua URL đã tồn tại (đã kiểm tra): {url}")
                     continue
 
                 try:
-                    logger.info(f"Đang xử lý chi tiết bài viết {i+1}/{len(basic_infos)} (target: {limit}) - URL: {url}")
+                    logger.info(f"Đang xử lý chi tiết bài viết URL: {url}")
                     
                     if not self._open_article_page(driver, url):
+                        logger.warning(f"⏭️ Bỏ qua: Không thể mở trang {url}")
                         continue
                     
                     category_name = self._get_category(driver, url)
                     if not category_name or category_name not in valid_category_names_in_db:
-                        logger.info(f"⏭️ Bỏ qua category không hợp lệ hoặc không tìm thấy: {category_name}")
+                        logger.warning(f"⏭️ Bỏ qua: Category không hợp lệ/không tìm thấy ({category_name}) cho {url}")
                         self._close_article_tab(driver)
                         self.urls_processed.append({"url": url,"success": False,"reason": f"Category không hợp lệ/không tìm thấy: {category_name}"})
                         continue
