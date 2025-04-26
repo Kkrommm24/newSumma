@@ -17,8 +17,9 @@
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^6.22.3",
-    "react-infinite-scroll-component": "^6.1.0"
+    "react-infinite-scroll-component": "^6.1.0",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
