@@ -1,100 +1,112 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Input, Tag, Spin, Alert, Typography, Space, message, ConfigProvider } from 'antd';
-import axiosInstance from '../services/axiosInstance'; // Đảm bảo đường dẫn đúng
-import { useAuth } from '../context/AuthContext.jsx'; // Import useAuth
+import { Row, Col, Input, Tag, Spin, Alert, Typography, Space, message, ConfigProvider, Button, Divider } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  fetchFavoriteKeywords,
+  addFavoriteKeyword,
+  deleteFavoriteKeyword
+} from '../store/slices/userSlice';
+import { useAuth } from '../context/AuthContext.jsx';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+// Danh sách từ khóa gợi ý (có thể lấy từ API sau này)
+const suggestedKeywordsList = [
+  'Công nghệ', 'Thể thao', 'Giải trí', 'Kinh tế', 'Thế giới',
+  'Giáo dục', 'Sức khỏe', 'Du lịch', 'Xe', 'Bất động sản'
+];
 
 function FavouriteCategories() {
-  const [keywords, setKeywords] = useState([]);
+  const dispatch = useDispatch();
+  const { isAuthenticated, authLoading } = useAuth();
+  
+  // Lấy state từ Redux
+  const { 
+      items: keywords, 
+      status: keywordsStatus, 
+      error: keywordsError 
+  } = useSelector((state) => state.user.favoriteKeywords);
+  
   const [newKeyword, setNewKeyword] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [inputLoading, setInputLoading] = useState(false); 
-  const { isAuthenticated, authLoading } = useAuth(); 
+  // Có thể giữ lại inputLoading hoặc dựa vào status của action add/delete nếu cần loading chi tiết hơn
+  const [isAdding, setIsAdding] = useState(false); 
 
-  const fetchKeywords = useCallback(async () => {
-    setError(null);
-    try {
-      const response = await axiosInstance.get('/user/fav-words');
-      setKeywords(response.data.favorite_keywords || []);
-    } catch (err) {
-      console.error("Error fetching keywords:", err);
-      setError('Không thể tải danh sách từ khóa yêu thích.');
-      message.error('Lỗi tải danh sách từ khóa!');
-    } finally {
-       setLoading(false);
+  // Fetch keywords khi component mount hoặc auth state thay đổi
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && keywordsStatus === 'idle') {
+      dispatch(fetchFavoriteKeywords());
     }
-  }, []);
+  }, [dispatch, authLoading, isAuthenticated, keywordsStatus]);
 
   const handleAddKeyword = async () => {
-    const keywordToAdd = newKeyword.trim();
+    const keywordToAdd = newKeyword.trim().toLowerCase(); // Chuẩn hóa thành chữ thường
     if (!keywordToAdd) {
       message.warning('Vui lòng nhập từ khóa.');
       return;
     }
-    
-    // Kiểm tra trùng lặp ở client trước khi gửi (không phân biệt hoa thường)
-    if (keywords.some(kw => kw.toLowerCase() === keywordToAdd.toLowerCase())) {
-        message.info(`Từ khóa "${keywordToAdd}" đã có trong danh sách.`);
-        setNewKeyword(''); // Xóa input sau khi thông báo
+    if (keywords.some(kw => kw.toLowerCase() === keywordToAdd)) {
+        message.info(`Từ khóa "${newKeyword.trim()}" đã có trong danh sách.`);
+        setNewKeyword('');
         return;
     }
-
-    setInputLoading(true);
-    setError(null);
+    
+    setIsAdding(true);
     try {
-      // API PATCH cần body là { "keywords": [...] }
-      const response = await axiosInstance.patch('/user/fav-words', { 
-        keywords: [keywordToAdd] 
-      });
-      setKeywords(response.data.favorite_keywords || []);
-      setNewKeyword('');
-      message.success(`Đã thêm từ khóa "${keywordToAdd}"`);
-    } catch (err) {
-      console.error("Error adding keyword:", err);
-      setError(`Không thể thêm từ khóa "${keywordToAdd}".`);
-      message.error('Lỗi khi thêm từ khóa!');
+      // unwrap() sẽ trả về payload thành công hoặc throw lỗi nếu rejected
+      await dispatch(addFavoriteKeyword(keywordToAdd)).unwrap(); 
+      message.success(`Đã thêm từ khóa "${newKeyword.trim()}"`);
+      setNewKeyword(''); 
+    } catch (rejectedValue) {
+      // Lỗi đã được log trong slice, có thể hiển thị thêm ở đây nếu muốn
+      message.error(keywordsError || 'Lỗi khi thêm từ khóa!');
     } finally {
-      setInputLoading(false);
+      setIsAdding(false);
     }
+  };
+
+  const handleAddSuggestedKeyword = async (keyword) => {
+      const keywordToAdd = keyword.toLowerCase();
+      if (keywords.some(kw => kw.toLowerCase() === keywordToAdd)) {
+        message.info(`Từ khóa "${keyword}" đã có trong danh sách.`);
+        return;
+      }
+       setIsAdding(true); // Có thể dùng loading chung cho các nút gợi ý
+       try {
+          await dispatch(addFavoriteKeyword(keywordToAdd)).unwrap();
+          message.success(`Đã thêm từ khóa "${keyword}"`);
+       } catch (rejectedValue) {
+          message.error(keywordsError || 'Lỗi khi thêm từ khóa!');
+       } finally {
+         setIsAdding(false);
+       }
   };
 
   const handleDeleteKeyword = async (keywordToDelete) => {
-    setError(null);
-    try {
-      const response = await axiosInstance.delete('/user/fav-words', { 
-        data: { keywords: [keywordToDelete] } 
-      });
-      setKeywords(response.data.favorite_keywords || []);
-      message.success(`Đã xóa từ khóa "${keywordToDelete}"`);
-    } catch (err) {
-      console.error("Error deleting keyword:", err);
-      setError(`Không thể xóa từ khóa "${keywordToDelete}".`);
-      message.error('Lỗi khi xóa từ khóa!');
-    }
+     const keywordLower = keywordToDelete.toLowerCase();
+     try {
+         await dispatch(deleteFavoriteKeyword(keywordLower)).unwrap();
+         message.success(`Đã xóa từ khóa "${keywordToDelete}"`);
+     } catch(rejectedValue) {
+         message.error(keywordsError || 'Lỗi khi xóa từ khóa!');
+     }
   };
 
-  // --- Effects --- 
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      setLoading(true);
-      fetchKeywords();
-    } else if (!authLoading && !isAuthenticated) {
-      setLoading(false);
-    }
-  }, [authLoading, isAuthenticated, fetchKeywords]);
-
-  // --- Render --- 
+  const availableSuggestions = suggestedKeywordsList.filter(
+      suggestion => !keywords.some(kw => kw.toLowerCase() === suggestion.toLowerCase())
+  );
+  
+  const isLoading = authLoading || keywordsStatus === 'loading' || keywordsStatus === 'idle';
+  // Hiển thị lỗi từ Redux state
+  const displayError = keywordsStatus === 'failed' ? keywordsError : null;
 
   return (
     <Row justify="center" style={{ padding: '20px' }}>
       <Col xs={24} sm={20} md={16} lg={12} xl={10}>
         <ConfigProvider
-           theme={{
+            theme={{
              token: {
-               colorPrimary: '#1f2937', // Màu đen xám đậm
+               colorPrimary: '#1f2937',
              },
              components: {
                Button: {
@@ -112,12 +124,16 @@ function FavouriteCategories() {
           <Title level={2} style={{ textAlign: 'center', marginBottom: '24px' }}>
             Từ khóa yêu thích
           </Title>
+          
+          <Text style={{ textAlign: 'center', display: 'block', marginBottom: '20px', color: 'gray' }}>
+            Thêm các chủ đề bạn quan tâm để nhận được gợi ý tin tức phù hợp hơn.
+          </Text>
 
-          <Spin spinning={loading || authLoading}>
-            {error && !loading && !authLoading && (
+          <Spin spinning={isLoading}> {/* Dùng isLoading */} 
+            {displayError && !isLoading && ( /* Dùng displayError */
               <Alert 
                 message="Lỗi" 
-                description={error} 
+                description={ typeof displayError === 'string' ? displayError : 'Đã có lỗi xảy ra.'} 
                 type="error" 
                 showIcon 
                 style={{ marginBottom: '16px' }} 
@@ -125,20 +141,39 @@ function FavouriteCategories() {
             )}
 
             <Input.Search
-              placeholder="Nhập từ khóa bạn yêu thích..."
+               placeholder="Nhập từ khóa bạn yêu thích..."
               enterButton="Thêm"
               size="large"
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               onSearch={handleAddKeyword}
-              loading={inputLoading}
+              loading={isAdding} // Dùng isAdding cho input search
               style={{ marginBottom: '24px' }}
-              disabled={loading || authLoading}
+              disabled={isLoading} // Disable khi đang tải lần đầu
             />
-
-            <Title level={4}>Danh sách từ khóa:</Title>
             
-            {keywords.length === 0 && !loading && !authLoading ? (
+            {availableSuggestions.length > 0 && (
+              <>
+                 <Divider orientation="left" plain>Gợi ý cho bạn</Divider>
+                 <Space size={[8, 8]} wrap style={{ marginBottom: '24px' }}>
+                   {availableSuggestions.map((suggestion) => (
+                     <Button 
+                       key={suggestion}
+                       icon={<PlusOutlined />}
+                       size="small"
+                       onClick={() => handleAddSuggestedKeyword(suggestion)}
+                       disabled={isAdding} // Disable các nút gợi ý khi đang thêm
+                     >
+                       {suggestion}
+                     </Button>
+                   ))}
+                 </Space>
+              </>
+            )}
+
+            <Title level={4}>Danh sách của bạn:</Title>
+            
+            {keywords.length === 0 && !isLoading ? (
               <p style={{ color: 'grey' }}>Bạn chưa có từ khóa yêu thích nào.</p>
             ) : (
                <Space size={[8, 16]} wrap style={{ border: '1px solid #d9d9d9', padding: '16px', borderRadius: '8px', minHeight: '100px'}}>
@@ -147,11 +182,9 @@ function FavouriteCategories() {
                       key={keyword}
                       closable
                       onClose={(e) => {
-                        e.preventDefault(); // Ngăn sự kiện mặc định nếu có
+                        e.preventDefault();
                         handleDeleteKeyword(keyword);
                       }}
-                      // Bỏ màu xanh cứng, để theme hoặc màu mặc định xử lý
-                      // color="blue" 
                       style={{ padding: '5px 10px', fontSize: '14px', margin: '4px' }}
                     >
                       {keyword}
