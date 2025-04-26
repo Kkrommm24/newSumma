@@ -13,7 +13,7 @@ class Command(BaseCommand):
         USER_DATA = [
             {"username": "admin", "email": "admin@example.com", "password": DEFAULT_PASSWORD, "is_staff": True, "is_superuser": True},
             {"username": "testuser1", "email": "test1@example.com", "password": DEFAULT_PASSWORD},
-            {"username": "hunghdg215062", "email": "hdghung2912@gmail.com", "password": DEFAULT_PASSWORD},
+            {"username": "hunghdg215062", "email": "hung.hdg215062@sis.hust.edu.vn", "password": DEFAULT_PASSWORD},
             {"username": "testuser2", "email": "test2@example.com", "password": DEFAULT_PASSWORD},
             {"username": "testuser3", "email": "test3@example.com", "password": DEFAULT_PASSWORD},
             {"username": "testuser4", "email": "test4@example.com", "password": DEFAULT_PASSWORD},
