@@ -10,9 +10,10 @@ COPY package*.json ./
 # Cài đặt dependencies
 RUN npm install && \
     npm install -D tailwindcss@latest postcss@latest autoprefixer@latest && \
-    npm install react react-dom react-router-dom prop-types axios && \
-    npm install react-infinite-scroll-component && \
-    npm install antd @ant-design/icons && \
+    npm install react react-dom react-router-dom prop-types axios \
+                react-infinite-scroll-component \
+                antd @ant-design/icons \
+                @reduxjs/toolkit react-redux && \
     npm install @tailwindcss/line-clamp
 
 # Sao chép source code

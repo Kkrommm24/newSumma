@@ -4,12 +4,14 @@ import { Form, Input, Button, Typography, Spin, Alert, Row, Col, Checkbox, Card,
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthService from '../services/authService';
+import axiosInstance from '../services/axiosInstance';
 import loginImage from '../assets/images/login_img.png';
 
 const { Title, Paragraph, Link } = Typography;
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
+  const [checkingPrefs, setCheckingPrefs] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,18 +27,36 @@ const LoginPage = () => {
       const loginSuccess = await login(data.access, data.refresh);
 
       if (loginSuccess) {
-        navigate(from, { replace: true });
+        setCheckingPrefs(true);
+        try {
+          const prefsResponse = await axiosInstance.get('/user/fav-words');
+          const favoriteKeywords = prefsResponse.data?.favorite_keywords || [];
+          
+          if (favoriteKeywords.length === 0) {
+            navigate('/favourite-categories', { replace: true });
+          } else {
+            navigate(from, { replace: true });
+          }
+        } catch (prefsError) {
+          console.error("Error fetching user preferences after login:", prefsError);
+          navigate(from, { replace: true });
+        } finally {
+          setCheckingPrefs(false);
+        }
       } else {
         setError('Xử lý thông tin đăng nhập thất bại.');
       }
     } catch (err) {
       const defaultErrorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.';
-      setError(defaultErrorMessage);
+      setError(err.response?.data?.detail || defaultErrorMessage);
       console.error("Login failed:", err.response || err);
     } finally {
       setLoading(false);
     }
   };
+
+  const totalLoading = loading || authLoading || checkingPrefs;
+  const loadingTip = authLoading ? "Đang xử lý..." : (checkingPrefs ? "Kiểm tra cài đặt..." : "Đang đăng nhập...");
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -84,7 +104,7 @@ const LoginPage = () => {
                 <Title level={2} className="text-black mb-2 md:mb-3">Đăng nhập vào</Title>
                 <Paragraph className="text-gray-500 mb-8 md:mb-10" style={{ marginBottom: '30px' }}>NewSumma</Paragraph>
 
-                <Spin spinning={loading || authLoading} tip={authLoading ? "Đang xử lý..." : "Đang đăng nhập..."}>
+                <Spin spinning={totalLoading} tip={loadingTip}>
                   <Form
                     layout="vertical"
                     name="login_form"
@@ -149,7 +169,7 @@ const LoginPage = () => {
                         htmlType="submit"
                         className="w-full text-white border-none"
                         size="large"
-                        disabled={loading || authLoading}
+                        disabled={totalLoading}
                         style={{
                             backgroundColor: '#252525',
                             borderColor: '#252525'

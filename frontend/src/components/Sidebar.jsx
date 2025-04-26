@@ -10,16 +10,20 @@ import {
   HeartOutlined,
   BookOutlined,
   UserOutlined,
-  GlobalOutlined,
   BgColorsOutlined,
   LogoutOutlined,
-  MenuUnfoldOutlined,
-  MenuFoldOutlined,
+
   CloseOutlined
 } from "@ant-design/icons"
 import logo from "../assets/images/logo.png"
 import { useAuth } from '../context/AuthContext.jsx';
-import axiosInstance from "../services/axiosInstance";
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  fetchSearchHistory,
+  addSearchHistory,
+  deleteSearchHistoryItem,
+  resetUserState
+} from '../store/slices/userSlice';
 
 const { Sider } = Layout
 const { Text } = Typography;
@@ -32,14 +36,20 @@ const gray600 = '#4b5563';
 const Sidebar = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout, isAuthenticated } = useAuth();
+  const dispatch = useDispatch();
+  const { logout: authLogout, isAuthenticated, authLoading } = useAuth();
   const { message } = App.useApp();
 
+  const { 
+      items: searchHistory, 
+      status: historyStatus, 
+  } = useSelector((state) => state.user.searchHistory);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchHistory, setSearchHistory] = useState([]);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const inputRef = useRef(null);
+  
+  const loadingHistory = historyStatus === 'loading';
 
   const antdMenuItems = [
     { key: '1', icon: <HomeOutlined />, label: "Dành cho bạn", path: '/' },
@@ -57,62 +67,40 @@ const Sidebar = ({ collapsed, onCollapse }) => {
 
   const [activeKey, setActiveKey] = useState(getKeyFromPath(location.pathname));
 
-  const fetchSearchHistory = useCallback(async () => {
-    if (!isAuthenticated) return;
-    setLoadingHistory(true);
-    try {
-      const response = await axiosInstance.get('/user/search-history');
-      setSearchHistory(response.data || []);
-    } catch (error) {
-      console.error("Error fetching search history:", error);
-    } finally {
-      setLoadingHistory(false);
-    }
-  }, [isAuthenticated]);
-
-  const addSearchHistory = async (query) => {
-    if (!isAuthenticated || !query || !query.trim()) return;
-    try {
-      await axiosInstance.post('/user/search-history', { query: query.trim() });
-      fetchSearchHistory();
-    } catch (error) {
-      console.error("Error adding search history:", error);
-      message.error("Lỗi khi lưu lịch sử tìm kiếm.");
-    }
-  };
-
-  const deleteSearchHistoryItem = async (queryToDelete) => {
-    if (!isAuthenticated) return;
-    const originalHistory = [...searchHistory];
-    setSearchHistory(prev => prev.filter(item => item.query !== queryToDelete));
-    try {
-      const response = await axiosInstance.delete('/user/search-history', {
-        data: { queries: [queryToDelete] }
-      });
-      if (response.status === 200) {
-        setSearchHistory(response.data);
-      } else {
-        if (response.status !== 404) {
-          fetchSearchHistory();
-        }
-      }
-      message.success(`Đã xóa "${queryToDelete}" khỏi lịch sử.`);
-    } catch (error) {
-      console.error("Error deleting search history item:", error);
-      message.error("Lỗi khi xóa lịch sử tìm kiếm.");
-      setSearchHistory(originalHistory);
-    }
-  };
-
   useEffect(() => {
-    fetchSearchHistory();
-  }, [fetchSearchHistory]);
+    if (!authLoading && isAuthenticated && historyStatus === 'idle') {
+      dispatch(fetchSearchHistory());
+    }
+  }, [dispatch, authLoading, isAuthenticated, historyStatus]);
+
+  const handleAddSearchHistory = (query) => {
+    if (!isAuthenticated || !query || !query.trim()) return;
+    dispatch(addSearchHistory(query.trim()))
+        .unwrap()
+        .catch((rejectedValue) => {
+            console.error("Failed to add search history:", rejectedValue);
+            message.error("Lỗi khi lưu lịch sử tìm kiếm.");
+        });
+  };
+
+  const handleDeleteSearchHistoryItem = (queryToDelete) => {
+    if (!isAuthenticated) return;
+    dispatch(deleteSearchHistoryItem(queryToDelete))
+        .unwrap()
+        .then(() => {
+            message.success(`Đã xóa "${queryToDelete}" khỏi lịch sử.`);
+        })
+        .catch((rejectedValue) => {
+            console.error("Failed to delete search history:", rejectedValue);
+            message.error("Lỗi khi xóa lịch sử tìm kiếm.");
+        });
+  };
 
   const handleSearch = (value) => {
     const query = value.trim();
     if (!query) return;
     setSearchTerm(query);
-    addSearchHistory(query);
+    handleAddSearchHistory(query);
     setIsHistoryVisible(false);
     inputRef.current?.blur();
     navigate(`/?q=${encodeURIComponent(query)}`);
@@ -130,8 +118,8 @@ const Sidebar = ({ collapsed, onCollapse }) => {
   };
   
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    authLogout();
+    dispatch(resetUserState());
   };
 
   const getHistoryMenuItems = () => {
@@ -148,7 +136,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
         return [{ key: 'loading', label: <div className="text-center p-3"><Spin size="small" /></div>, disabled: true }];
     }
 
-    if (uniqueSearchHistory.length === 0) {
+    if (uniqueSearchHistory.length === 0 && historyStatus !== 'idle' && historyStatus !== 'loading') {
         return [{ key: 'no-history', label: <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>, disabled: true }];
     }
 
@@ -169,7 +157,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
             style={{ flexShrink: 0 }}
             onClick={(e) => {
               e.stopPropagation();
-              deleteSearchHistoryItem(item.query);
+              handleDeleteSearchHistoryItem(item.query);
             }}
           />
         </div>
@@ -255,14 +243,10 @@ const Sidebar = ({ collapsed, onCollapse }) => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => {
-                     if (!searchHistory.length && isAuthenticated) {
-                       fetchSearchHistory();
-                     }
                      setIsHistoryVisible(true);
                   }}
                   onPressEnter={(e) => {
                       handleSearch(e.target.value);
-                      setIsHistoryVisible(false);
                   }}
                 />
               </Dropdown>

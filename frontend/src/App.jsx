@@ -9,7 +9,7 @@ import Bookmark from './pages/Bookmark';
 import Profile from './pages/Profile';
 import Theme from './pages/Theme';
 import LoginPage from './pages/LoginPage';
-// import RegisterPage from './pages/RegisterPage';
+import RegisterPage from './pages/RegisterPage';
 // import NotFoundPage from './pages/NotFoundPage';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -31,7 +31,7 @@ const AppContent = () => {
         <Content style={{ margin: '1vh', overflow: 'auto' }}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            {/* <Route path="/register" element={<RegisterPage />} /> */}
+            <Route path="/register" element={<RegisterPage />} />
 
             <Route
               path="/"
