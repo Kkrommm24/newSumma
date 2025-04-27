@@ -98,12 +98,13 @@ export const removeBookmark = createAsyncThunk(
   'user/removeBookmark',
   async (articleId, { dispatch, rejectWithValue }) => {
     try {
-      await axiosInstance.delete('/user/bookmarks', { data: { article_ids: [articleId] } });
-      dispatch(fetchBookmarks());
+      await axiosInstance.delete('/user/bookmarks', { data: { article_id: articleId } });
       return articleId;
     } catch (error) {
-      console.error("Error removing bookmark:", error.response || error);
-       return rejectWithValue({ errorData: error.response?.data, articleId });
+      console.error('[userSlice] Error removing bookmark API call:', error.response || error);
+      const errorData = error.response?.data;
+      const errorMessage = errorData?.detail || 'Lỗi khi xóa bookmark.';
+      return rejectWithValue({ articleId, message: errorMessage, status: error.response?.status });
     }
   }
 );
@@ -226,9 +227,20 @@ const userSlice = createSlice({
            console.error("Add bookmark rejected:", action.payload);
            state.bookmarks.error = `Không thể lưu bài viết (ID: ${action.meta.arg}).`;
        })
+       .addCase(removeBookmark.pending, (state, action) => {
+         state.bookmarks.status = 'loading';
+       })
+       .addCase(removeBookmark.fulfilled, (state, action) => {
+         state.bookmarks.items = state.bookmarks.items.filter(item => item.article.id !== action.payload);
+         state.bookmarks.status = 'succeeded';
+         state.bookmarks.error = null;
+       })
        .addCase(removeBookmark.rejected, (state, action) => {
-           console.error("Remove bookmark rejected:", action.payload);
-           state.bookmarks.error = `Không thể xóa bài viết đã lưu (ID: ${action.meta.arg}).`;
+           console.error("[userSlice] Remove bookmark rejected:", action.payload);
+           const articleId = action.payload?.articleId || action.meta.arg;
+           const message = action.payload?.message || `Không thể xóa bài viết đã lưu (ID: ${articleId}).`;
+           state.bookmarks.error = message;
+           state.bookmarks.status = 'failed';
        });
   },
 });
