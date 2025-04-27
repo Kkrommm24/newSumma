@@ -32,6 +32,7 @@ export const fetchNews = createAsyncThunk(
       if (data && data.results) {
         const formattedData = data.results.map(item => ({
             id: item.id,
+            articleId: item.article_id,
             title: item.title || 'Không có tiêu đề',
             summary: item.summary_text || item.summary || 'Không có tóm tắt',
             imageUrl: item.image_url || null,
