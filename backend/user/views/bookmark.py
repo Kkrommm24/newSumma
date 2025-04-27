@@ -50,7 +50,7 @@ class UserBookmarkView(generics.GenericAPIView):
                 user_id = request.user.id
                 article_id = serializer.validated_data['article_id']
                 bookmark_service.remove_bookmark(user_id, article_id)
-                return Response({"detail": "Bookmark đã được xóa thành công."}, status=status.HTTP_204_NO_CONTENT)
+                return Response({"detail": "Bookmark đã được xóa thành công."}, status=status.HTTP_200_OK)
             except APIException as e:
                 return Response({"detail": e.detail}, status=e.status_code)
             except Exception as e:

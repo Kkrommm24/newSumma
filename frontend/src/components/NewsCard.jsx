@@ -4,6 +4,7 @@ import { simpleActionIconsConfig } from "./InteractiveButtons";
 import RatingComponent from "./RatingComponent";
 import CommentSection from './CommentSection';
 import axiosInstance from '../services/axiosInstance';
+import { BookOutlined, BookFilled } from '@ant-design/icons';
 
 const { Meta } = Card;
 const { Text } = Typography;
@@ -26,7 +27,21 @@ const formatDate = (dateString) => {
   }
 };
 
-const NewsCard = ({ id, title, summary, imageUrl, sourceUrl, publishedAt, userVote, upvotes: initialUpvotes, downvotes: initialDownvotes }) => {
+const NewsCard = ({ 
+  id,
+  articleId,
+  title, 
+  summary, 
+  imageUrl, 
+  sourceUrl, 
+  publishedAt, 
+  userVote, 
+  upvotes: initialUpvotes, 
+  downvotes: initialDownvotes, 
+  isBookmarked,
+  onBookmarkToggle,
+  showBookmarkButton = true
+}) => {
   const { message: messageApi } = App.useApp();
   const [isCommentDrawerVisible, setIsCommentDrawerVisible] = useState(false);
   const [displayUpvotes, setDisplayUpvotes] = useState(initialUpvotes || 0);
@@ -127,20 +142,50 @@ const NewsCard = ({ id, title, summary, imageUrl, sourceUrl, publishedAt, userVo
     }
   };
 
-  const cardActions = simpleActionIconsConfig.map(action => {
-    const { key, IconComponent } = action;
-    let onClickHandler = () => console.log(`${key} clicked!`);
+  const availableActionsConfig = [...simpleActionIconsConfig];
 
-    if (key === 'comment') {
-      onClickHandler = showCommentDrawer;
-    } else if (key === 'bookmark') {
-      // onClickHandler = handleBookmark;
-    } else if (key === 'share') {
-      // onClickHandler = handleShare;
-    }
+  const cardActions = [];
 
-    return <IconComponent key={key} onClick={onClickHandler} />;
-  });
+  if (showBookmarkButton && onBookmarkToggle) {
+    const BookmarkIcon = isBookmarked ? BookFilled : BookOutlined;
+    cardActions.push(
+      <BookmarkIcon 
+        key="bookmark" 
+        onClick={(e) => { 
+          e.stopPropagation();
+          onBookmarkToggle(articleId, isBookmarked); 
+        }} 
+        style={{ color: isBookmarked ? '#111827' : undefined }}
+      />
+    );
+  }
+
+  const commentActionConfig = availableActionsConfig.find(a => a.key === 'comment');
+  if (commentActionConfig) {
+    cardActions.push(
+      <commentActionConfig.IconComponent 
+        key="comment" 
+        onClick={(e) => {
+          e.stopPropagation();
+          showCommentDrawer();
+        }} 
+      />
+    );
+  }
+
+
+  const shareActionConfig = availableActionsConfig.find(a => a.key === 'share');
+  if (shareActionConfig) {
+    cardActions.push(
+      <shareActionConfig.IconComponent 
+        key="share" 
+        onClick={(e) => {
+          e.stopPropagation();
+          // Thêm logic share nếu cần
+        }} 
+      />
+    );
+  }
 
   return (
     <>
