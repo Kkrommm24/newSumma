@@ -1,12 +1,9 @@
 import axiosInstance from './axiosInstance';
 
-const API_URL = '/authorizer/';
-const USER_API_URL = '/user/';
-
 const AuthService = {
   login: async (username, password) => {
     try {
-      const response = await axiosInstance.post(`${API_URL}token/`, {
+      const response = await axiosInstance.post('/authorizer/token/', {
         username,
         password,
       });
@@ -19,7 +16,7 @@ const AuthService = {
 
   register: async (username, email, password, password2) => {
     try {
-      const response = await axiosInstance.post(`${USER_API_URL}register`, {
+      const response = await axiosInstance.post('/user/register', {
         username,
         email,
         password,
@@ -38,14 +35,13 @@ const AuthService = {
       const response = await axiosInstance.post('/authorizer/token/refresh/', {
         refresh: refresh
       });
-      return response.data; // Trả về { access: "new_access_token" }
+      return response.data;
     } catch (error) {
       console.error('Refresh token API error:', error.response || error);
-      throw error; // Ném lỗi để interceptor xử lý logout
+      throw error;
     }
   },
 
-  // Có thể thêm các hàm khác như register, refreshToken ở đây
 };
 
 export default AuthService; 

@@ -198,4 +198,14 @@ CELERY_TASK_ROUTES = {
          'queue': 'low_priority',
          'routing_key': 'low_priority.crawl_vnexpress',
     },
+    'user.tasks.send_password_reset_email': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.email_reset',
+    },
+    'user.tasks.send_welcome_email_task': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.welcome_mail',
+    },
 }
+
+FRONTEND_RESET_PASSWORD_URL = 'http://localhost:5173/reset-password'
