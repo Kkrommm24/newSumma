@@ -38,7 +38,6 @@ const LoginPage = () => {
             navigate(from, { replace: true });
           }
         } catch (prefsError) {
-          console.error("Error fetching user preferences after login:", prefsError);
           navigate(from, { replace: true });
         } finally {
           setCheckingPrefs(false);
@@ -48,8 +47,9 @@ const LoginPage = () => {
       }
     } catch (err) {
       const defaultErrorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.';
-      setError(err.response?.data?.detail || defaultErrorMessage);
-      console.error("Login failed:", err.response || err);
+      const backendError = err.response?.data?.detail || defaultErrorMessage;
+      setError(backendError); 
+      console.log("[LoginPage] setError called with:", backendError);
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ const LoginPage = () => {
                     >
                       <Input
                         prefix={<UserOutlined className="text-gray-400" />}
-                        placeholder="Enter your user name"
+                        placeholder="Nhập tên đăng nhập của bạn"
                         size="large"
                         className="text-black"
                       />
@@ -139,7 +139,7 @@ const LoginPage = () => {
                     >
                       <Input.Password
                         prefix={<LockOutlined className="text-gray-400" />}
-                        placeholder="Enter your Password"
+                        placeholder="Nhập mật khẩu của bạn"
                         size="large"
                         className="text-black"
                       />

@@ -2,7 +2,7 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
-from ..serializers.user_serializer import UserRegistrationSerializer
+from ..serializers.serializers import UserRegistrationSerializer
 from ..tasks import send_welcome_email_task
 from rest_framework.exceptions import ValidationError
 
