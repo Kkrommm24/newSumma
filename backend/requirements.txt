@@ -21,11 +21,13 @@ click==8.1.8
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
+cloudinary==1.44.0
 comm==0.2.2
 cron-descriptor==1.4.5
 debugpy==1.8.13
 decorator==5.2.1
 decouple==0.0.7
+deep-translator==1.11.4
 defusedxml==0.7.1
 Django==5.1.6
 django-celery-beat==2.7.0
@@ -41,6 +43,7 @@ fastjsonschema==2.21.1
 filelock==3.17.0
 fqdn==1.5.1
 fsspec==2025.2.0
+googletrans==4.0.2
 gunicorn==23.0.0
 h11==0.14.0
 h2==4.2.0
@@ -69,6 +72,7 @@ jupyterlab==4.3.5
 jupyterlab_pygments==0.3.0
 jupyterlab_server==2.27.3
 kombu==5.4.2
+langdetect==1.0.9
 MarkupSafe==3.0.2
 matplotlib-inline==0.1.7
 mistune==3.1.2
@@ -101,6 +105,7 @@ pandocfilters==1.5.1
 parso==0.8.4
 peft==0.15.0
 pexpect==4.9.0
+pillow==11.2.1
 platformdirs==4.3.6
 prometheus_client==0.21.1
 prompt_toolkit==3.0.50
@@ -160,4 +165,3 @@ webdriver-manager==4.0.2
 webencodings==0.5.1
 websocket-client==1.8.0
 wsproto==1.2.0
-langdetect

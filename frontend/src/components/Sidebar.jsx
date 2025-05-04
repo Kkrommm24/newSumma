@@ -217,9 +217,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
             <div className="px-4 py-2 mb-2">
               <Dropdown
                 menu={{ items: getHistoryMenuItems() }}
-                trigger={['click']}
                 open={isHistoryVisible}
-                onOpenChange={setIsHistoryVisible}
                 placement="bottomLeft"
                 dropdownRender={(menu) => (
                   <div
@@ -244,6 +242,11 @@ const Sidebar = ({ collapsed, onCollapse }) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => {
                      setIsHistoryVisible(true);
+                  }}
+                  onBlur={() => {
+                      setTimeout(() => {
+                          setIsHistoryVisible(false);
+                      }, 150);
                   }}
                   onPressEnter={(e) => {
                       handleSearch(e.target.value);

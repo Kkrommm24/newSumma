@@ -2,8 +2,38 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from news.models import UserPreference, SearchHistory, UserSavedArticle, NewsArticle, Category, NewsArticleCategory
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.password_validation import validate_password, MinimumLengthValidator, CommonPasswordValidator, NumericPasswordValidator, UserAttributeSimilarityValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 User = get_user_model()
+
+# Từ điển dịch lỗi mật khẩu
+PASSWORD_ERROR_TRANSLATIONS = {
+    "This password is too common.": _("Mật khẩu này quá phổ biến."),
+    "The password is too similar to the username.": _("Mật khẩu quá giống với tên người dùng."),
+    "The password is too similar to the email address.": _("Mật khẩu quá giống với địa chỉ email."),
+}
+
+def translate_password_errors(error_list):
+    translated_errors = []
+    for error in error_list:
+        error_code = getattr(error, 'code', None) # Lấy code một cách an toàn
+
+        if error_code == 'password_too_short':
+             # Lấy min_length từ thông điệp lỗi hoặc cấu hình nếu cần
+             # Cách đơn giản nhất là dùng thông điệp từ điển
+             min_length = MinimumLengthValidator().min_length # Lấy cấu hình min_length
+             translated_errors.append(_(f"Mật khẩu phải chứa ít nhất {min_length} ký tự."))
+        elif error_code == 'password_too_common':
+            translated_errors.append(PASSWORD_ERROR_TRANSLATIONS.get(error.message, _("Mật khẩu này quá phổ biến.")))
+        elif error_code == 'password_entirely_numeric':
+             translated_errors.append(_("Mật khẩu không được hoàn toàn là chữ số."))
+        elif error_code == 'password_too_similar':
+            # Dùng thông điệp từ điển nếu có, hoặc lỗi gốc
+             translated_errors.append(PASSWORD_ERROR_TRANSLATIONS.get(error.message, str(error)))
+        else:
+            translated_errors.append(PASSWORD_ERROR_TRANSLATIONS.get(error.message, str(error)))
+    return translated_errors
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -123,7 +153,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data['password'] != data['password2']:
-            raise serializers.ValidationError({"password2": _("Password fields didn't match.")})
+            raise serializers.ValidationError({"password2": _("Mật khẩu xác nhận không khớp.")})
+        try:
+            # Sử dụng user=None vì user chưa được tạo
+            validate_password(data['password'], user=None)
+        except DjangoValidationError as e:
+            translated_errors = translate_password_errors(e.error_list)
+            raise serializers.ValidationError({"password": translated_errors})
         return data
 
     def create(self, validated_data):
@@ -150,4 +186,52 @@ class SetNewPasswordSerializer(serializers.Serializer):
     def validate(self, data):
         if data['password'] != data['password2']:
             raise serializers.ValidationError({"password2": _("Mật khẩu xác nhận không khớp.")})
+        try:
+            # Tương tự, kiểm tra với user=None
+            validate_password(data['password'], user=None)
+        except DjangoValidationError as e:
+            translated_errors = translate_password_errors(e.error_list)
+            raise serializers.ValidationError({"password": translated_errors})
         return data 
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'avatar']
+        extra_kwargs = {
+            'username': {'required': False},
+            'email': {'required': False},
+        }
+
+    def validate_username(self, value):
+        if self.instance and User.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Username này đã được sử dụng.")
+        return value
+
+    def validate_email(self, value):
+         if self.instance and User.objects.filter(email=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Email này đã được sử dụng.")
+         return value
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    new_password_confirm = serializers.CharField(required=True, write_only=True)
+
+    def validate_new_password(self, value):
+        try:
+            validate_password(value, self.context.get('request').user)
+        except DjangoValidationError as e:
+            translated_errors = translate_password_errors(e.error_list)
+            raise serializers.ValidationError(translated_errors)
+        return value
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password_confirm']:
+            raise serializers.ValidationError({"new_password_confirm": _("Mật khẩu mới không khớp.")})
+        return data
+
+class AccountDeletionSerializer(serializers.Serializer):
+    password = serializers.CharField(required=True, write_only=True, style={'input_type': 'password'})

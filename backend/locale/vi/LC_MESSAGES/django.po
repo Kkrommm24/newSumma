@@ -1,0 +1,67 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-04 11:10+0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+#: authorizer/serializers/serializers.py:14
+msgid "Tên đăng nhập hoặc mật khẩu không đúng."
+msgstr ""
+
+#: user/serializers/serializers.py:12 user/serializers/serializers.py:28
+msgid "Mật khẩu này quá phổ biến."
+msgstr ""
+
+#: user/serializers/serializers.py:13
+msgid "Mật khẩu quá giống với tên người dùng."
+msgstr ""
+
+#: user/serializers/serializers.py:14
+msgid "Mật khẩu quá giống với địa chỉ email."
+msgstr ""
+
+#: user/serializers/serializers.py:26
+#, python-brace-format
+msgid "Mật khẩu phải chứa ít nhất {min_length} ký tự."
+msgstr ""
+
+#: user/serializers/serializers.py:30
+msgid "Mật khẩu không được hoàn toàn là chữ số."
+msgstr ""
+
+#: user/serializers/serializers.py:135 user/serializers/serializers.py:183
+msgid "Confirm password"
+msgstr ""
+
+#: user/serializers/serializers.py:146
+msgid "A user with that email already exists."
+msgstr ""
+
+#: user/serializers/serializers.py:151
+msgid "A user with that username already exists."
+msgstr ""
+
+#: user/serializers/serializers.py:156 user/serializers/serializers.py:188
+msgid "Mật khẩu xác nhận không khớp."
+msgstr ""
+
+#: user/serializers/serializers.py:178
+msgid "Không tìm thấy người dùng với địa chỉ email này."
+msgstr ""
+
+#: user/serializers/serializers.py:233
+msgid "Mật khẩu mới không khớp."
+msgstr ""

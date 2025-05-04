@@ -29,7 +29,6 @@ const AuthService = {
     }
   },
 
-  // Thêm hàm refresh token
   refreshToken: async (refresh) => {
     try {
       const response = await axiosInstance.post('/authorizer/token/refresh/', {
@@ -40,6 +39,50 @@ const AuthService = {
       console.error('Refresh token API error:', error.response || error);
       throw error;
     }
+  },
+
+  getUserProfile: async () => {
+    try {
+        const response = await axiosInstance.get('/user/profile');
+        return response.data;
+    } catch (error) {
+        console.error('Get User Profile API error:', error.response || error);
+        throw error;
+    }
+  },
+
+  updateUserProfile: async (formData) => {
+      try {
+          const response = await axiosInstance.put('/user/profile', formData, {
+              headers: {
+                  'Content-Type': undefined, 
+              }
+          });
+          return response.data;
+      } catch (error) {
+          console.error('Update User Profile API error:', error.response || error);
+          throw error;
+      }
+  },
+
+  changePassword: async (data) => {
+      try {
+          const response = await axiosInstance.post('/user/change-password', data);
+          return response.data;
+      } catch (error) {
+          console.error('Change Password API error:', error.response || error);
+          throw error;
+      }
+  },
+
+  deleteAccount: async (password) => {
+      try {
+          const response = await axiosInstance.post('/user/delete-account', { password });
+          return response.data;
+      } catch (error) {
+          console.error('Delete Account API error:', error.response || error);
+          throw error;
+      }
   },
 
 };

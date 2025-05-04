@@ -14,6 +14,9 @@ import environ
 from pathlib import Path
 from datetime import timedelta
 from kombu import Queue
+from dotenv import load_dotenv
+import cloudinary
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
@@ -25,6 +28,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key")
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
+load_dotenv() # Load biến môi trường từ .env
 
 # Application definition
 
@@ -53,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -124,7 +129,16 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'vi'
+
+LANGUAGES = [
+    ('en', _('English')),
+    ('vi', _('Vietnamese')),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
@@ -209,3 +223,14 @@ CELERY_TASK_ROUTES = {
 }
 
 FRONTEND_RESET_PASSWORD_URL = 'http://localhost:5173/reset-password'
+
+# Cloudinary configuration
+cloudinary.config(
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.getenv('CLOUDINARY_API_KEY'),
+    api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
+
+DEFAULT_AVATAR_URL = os.getenv('DEFAULT_AVATAR_URL', '')
+CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'avatars')

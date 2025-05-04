@@ -38,8 +38,7 @@ class RequestPasswordResetView(generics.GenericAPIView):
             token.payload['token_type'] = 'password_reset' 
             reset_token_str = str(token)
 
-            frontend_url = getattr(settings, 'FRONTEND_RESET_PASSWORD_URL', 'http://example.com/reset-password') 
-            # Link giờ chỉ chứa token
+            frontend_url = getattr(settings, 'FRONTEND_RESET_PASSWORD_URL', 'http://example.com/reset-password')
             reset_link = f"{frontend_url}/{reset_token_str}/"
 
             send_password_reset_email.delay(user.email, reset_link)
@@ -48,8 +47,6 @@ class RequestPasswordResetView(generics.GenericAPIView):
         except User.DoesNotExist:
              return Response({'message': 'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được link đặt lại mật khẩu.'}, status=status.HTTP_200_OK)
         except Exception as e:
-            # Log lỗi
-            print(f"Error generating password reset token: {e}") 
             return Response({'error': 'Đã xảy ra lỗi khi xử lý yêu cầu.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PasswordResetConfirmView(generics.GenericAPIView):
@@ -78,7 +75,6 @@ class PasswordResetConfirmView(generics.GenericAPIView):
             user.set_password(password)
             user.save(update_fields=['password'])
 
-            print(f"--- PasswordResetConfirmView: Password saved successfully ---", flush=True) 
             return Response({'message': 'Đặt lại mật khẩu thành công.'}, status=status.HTTP_200_OK)
 
         except (InvalidToken, TokenError) as e:

@@ -1,20 +1,19 @@
 # backend/summarizer/views/search.py
 import logging
-from django.db.models import Q, F, Case, When, Value, IntegerField
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from news.models import NewsSummary, NewsArticle
 from news.serializers.serializers import SummarySerializer
-from news.utils.pagination import InfiniteScrollPagination
+from news.utils.pagination import StandardResultsSetPagination
+from summarizer.services.search_service import search_summaries_with_articles
 
 logger = logging.getLogger(__name__)
 
 class ArticleSummarySearchView(APIView):
     permission_classes = [AllowAny]
-    pagination_class = InfiniteScrollPagination
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request, *args, **kwargs):
         query_param = request.query_params.get('q', None)
@@ -27,28 +26,18 @@ class ArticleSummarySearchView(APIView):
 
         query = query_param.strip()
 
-        search_query = SearchQuery(query, config='vietnamese', search_type='websearch')
-        vector = SearchVector('summary_text', config='vietnamese')
-
         try:
-            queryset = NewsSummary.objects.annotate(
-                exact_match_boost=Case(
-                    When(summary_text__icontains=query, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField()
-                ),
-                rank=SearchRank(F('search_vector'), search_query)
-            ).filter(
-                search_vector=search_query
-            ).order_by(
-                '-exact_match_boost',
-                '-rank',
-                '-created_at'
-            )
+            summary_queryset = search_summaries_with_articles(query)
+            
+            if summary_queryset is None:
+                return Response(
+                    {"error": "An error occurred during search processing."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             paginator = self.pagination_class()
-            paginated_summaries = paginator.paginate_queryset(queryset, request, view=self)
-
+            paginated_summaries = paginator.paginate_queryset(summary_queryset, request, view=self)
+            
             articles_dict = {}
             if paginated_summaries:
                 article_ids = {summary.article_id for summary in paginated_summaries}
@@ -58,12 +47,11 @@ class ArticleSummarySearchView(APIView):
             serializer_context = {'articles': articles_dict}
             serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
 
-            count = paginator.page.paginator.count if hasattr(paginator, 'page') else queryset.count()
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
-            logger.error(f"Error during article summary search for query '{query}': {e}", exc_info=True)
+            logger.error(f"Unhandled error in ArticleSummarySearchView for query '{query}': {e}", exc_info=True)
             return Response(
-                {"error": "An error occurred during search."},
+                {"error": "An unexpected error occurred."}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
