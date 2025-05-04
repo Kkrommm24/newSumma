@@ -43,23 +43,27 @@ export const fetchNews = createAsyncThunk(
             upvotes: item.upvotes,
             downvotes: item.downvotes
         }));
+        
         const totalCount = data.count || 0;
-        const hasMore = (page * NEWS_PER_PAGE) < totalCount;
+        const receivedItemsCount = data.results.length;
+        
+        const totalPages = Math.ceil(totalCount / NEWS_PER_PAGE);
+        const calculatedHasMore = page < totalPages;
 
         return { 
             items: formattedData, 
-            totalCount: totalCount, 
-            hasMore: hasMore, 
+            totalCount: totalCount,
+            hasMore: calculatedHasMore,
             page: page, 
             mode: mode, 
             query: query 
         };
       } else {
-        // Nếu API không trả về results, coi như không có gì
-         return rejectWithValue('Invalid API response structure');
+        console.warn(`[fetchNews fulfilled] Page: ${page}, Query: ${query} - API response missing results:`, data);
+        return { items: [], totalCount: 0, hasMore: false, page: page, mode: mode, query: query };
       }
     } catch (error) {
-      console.error(`Error fetching news (mode: ${mode}, query: ${query}, page: ${page}):`, error.response || error);
+      console.error(`[fetchNews rejected] Page: ${page}, Query: ${query}`, error.response || error);
       return rejectWithValue(error.response?.data || 'Failed to fetch news');
     }
   }
@@ -97,6 +101,7 @@ const newsSlice = createSlice({
         const requestKey = getRequestKey(mode, query);
         
         const requestState = state.requests[requestKey];
+        
         if(requestState) {
             requestState.status = 'succeeded';
             if (page === 1) {
@@ -113,11 +118,14 @@ const newsSlice = createSlice({
         }
       })
       .addCase(fetchNews.rejected, (state, action) => {
-        const { mode, query } = action.meta.arg;
+        const { mode, query, page } = action.meta.arg;
         const requestKey = getRequestKey(mode, query);
         if (state.requests[requestKey]) {
           state.requests[requestKey].status = 'failed';
           state.requests[requestKey].error = action.payload || action.error.message || 'Unknown error';
+          if (action.error.message?.includes("404") || action.payload?.includes("Invalid page")) {
+              state.requests[requestKey].hasMore = false; 
+          }
         }
       });
   },

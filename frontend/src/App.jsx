@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from 'antd';
+import { Layout, App as AntApp } from 'antd';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import Trending from './pages/Trending';
@@ -100,7 +100,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppContent />
+        <AntApp>
+          <AppContent />
+        </AntApp>
       </Router>
     </AuthProvider>
   );

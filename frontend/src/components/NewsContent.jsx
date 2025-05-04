@@ -22,6 +22,8 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   
   const requestKey = getRequestKey(fetchMode, searchQuery);
 
+  const isFetching = useRef(false); 
+
   const { 
       items: newsItems = [], 
       status: newsStatus = 'idle', 
@@ -33,8 +35,12 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   const { items: bookmarks = [], status: bookmarksStatus } = useSelector((state) => state.user.bookmarks);
   const bookmarkedArticleIds = React.useMemo(() => new Set(bookmarks.map(b => b.article?.id)), [bookmarks]);
 
-  const isLoading = newsStatus === 'loading';
-  const isInitialLoading = isLoading && newsItems.length === 0;
+  const isInitialLoading = newsStatus === 'loading' && newsItems.length === 0;
+
+  useEffect(() => {
+    isFetching.current = (newsStatus === 'loading');
+  }, [newsStatus]);
+
 
   useEffect(() => {
     if (isAuthenticated && bookmarksStatus === 'idle') {
@@ -43,12 +49,10 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   }, [dispatch, isAuthenticated, bookmarksStatus]);
 
   useEffect(() => {
+    isFetching.current = false; 
     if (newsStatus === 'idle') {
       dispatch(fetchNews({ mode: fetchMode, query: searchQuery, page: 1 }));
     }
-    // Nếu bạn muốn reset state khi component unmount hoặc mode/query thay đổi:
-    // return () => { dispatch(resetNewsState({ mode: fetchMode, query: searchQuery })); }
-    
   }, [dispatch, fetchMode, searchQuery, requestKey, newsStatus]);
 
   useEffect(() => {
@@ -61,10 +65,22 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   }, [selectedCardId]);
 
   const fetchMoreData = useCallback(() => {
-    if (!isLoading && hasMore) {
-      dispatch(fetchNews({ mode: fetchMode, query: searchQuery, page: currentPage }));
+    const currentIsFetching = isFetching.current; 
+    const currentHasMore = hasMore; 
+    const currentPageToFetch = currentPage;
+
+
+    if (!currentIsFetching && currentHasMore) {
+      isFetching.current = true; 
+      dispatch(fetchNews({ mode: fetchMode, query: searchQuery, page: currentPageToFetch }))
+         .finally(() => {
+             // Consider resetting isFetching here if useEffect is not reliable enough
+             // isFetching.current = false;
+         });
+    } else {
+      console.log("No more data to fetch or already fetching.");
     }
-  }, [dispatch, fetchMode, searchQuery, requestKey, isLoading, hasMore, currentPage]);
+  }, [dispatch, fetchMode, searchQuery, requestKey, hasMore, currentPage]);
 
   const handleCardClick = (id) => {
     setSelectedCardId(id);
@@ -114,7 +130,7 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
         dataLength={newsItems.length}
         next={fetchMoreData}
         hasMore={hasMore}
-        loader={<div className="text-center py-4"><Spin tip="Đang tải thêm..." /></div>}
+        loader={<div className="text-center py-4"><Spin /></div>}
         className="flex flex-wrap gap-6 justify-center"
       >
         {newsItems.map((item) => {

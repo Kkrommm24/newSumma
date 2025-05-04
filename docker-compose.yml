@@ -9,6 +9,7 @@ services:
       - ./backend:/app
       - ./backend/llama_finetune_model:/app/llama_finetune_model
       - static_volume:/app/static
+      - ./backend/locale:/app/locale
     working_dir: /app
     depends_on:
       db:
