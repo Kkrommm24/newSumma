@@ -2,9 +2,9 @@ import random
 import logging
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, OuterRef, Subquery
 
-from news.models import NewsSummary, User, SummaryFeedback
+from news.models import NewsSummary, User, SummaryFeedback, NewsArticle
 
 logger = logging.getLogger(__name__) 
 
@@ -20,9 +20,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Starting to seed summary feedback...'))
 
         try:
-            summaries_to_process = list(NewsSummary.objects.order_by('?')[:10]) 
+            # Subquery to get the published_at of the related NewsArticle
+            article_published_at_subquery = NewsArticle.objects.filter(
+                id=OuterRef('article_id')
+            ).values('published_at')[:1]
+
+            summaries_to_process = list(
+                NewsSummary.objects.annotate(
+                    article_published_at_val=Subquery(article_published_at_subquery)
+                ).order_by('-article_published_at_val')[:10]
+            )
             # Loại bỏ user 'hunghdg215062' trước khi lấy danh sách ngẫu nhiên
-            users = list(User.objects.exclude(username='hunghdg215062').order_by('?')[:20]) 
+            users = list(User.objects.exclude(username='hunghdg215062').order_by('?')[:20])
 
             if not summaries_to_process:
                 self.stdout.write(self.style.WARNING('No NewsSummary found. Please seed summaries first.'))

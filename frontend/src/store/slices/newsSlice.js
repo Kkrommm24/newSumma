@@ -41,7 +41,8 @@ export const fetchNews = createAsyncThunk(
             publishedAt: item.published_at || null,
             userVote: item.user_vote === true ? true : item.user_vote === false ? false : null,
             upvotes: item.upvotes,
-            downvotes: item.downvotes
+            downvotes: item.downvotes,
+            comment_count: item.comment_count === undefined ? 0 : item.comment_count
         }));
         
         const totalCount = data.count || 0;

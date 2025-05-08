@@ -1,6 +1,9 @@
+import os
 from rest_framework import serializers
-from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, SummaryFeedback, User
+from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, SummaryFeedback, User, Comment
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+DEFAULT_AVATAR_URL = os.getenv('DEFAULT_AVATAR_URL', 'https://example.com/default-avatar.png')
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -42,6 +45,7 @@ class SummarySerializer(serializers.ModelSerializer):
     keywords = serializers.SerializerMethodField()
     published_at = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
@@ -57,7 +61,8 @@ class SummarySerializer(serializers.ModelSerializer):
             'upvotes', 
             'downvotes', 
             'created_at',
-            'user_vote'
+            'user_vote',
+            'comment_count'
         ]
 
     def get_title(self, obj):
@@ -95,6 +100,38 @@ class SummarySerializer(serializers.ModelSerializer):
                 return None
         return None
 
+    def get_comment_count(self, obj):
+        if obj.article_id:
+            return Comment.objects.filter(article_id=obj.article_id).count()
+        return 0
+
+class UserSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'avatar')
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if not representation.get('avatar'):
+            representation['avatar'] = DEFAULT_AVATAR_URL
+        return representation
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    content = serializers.CharField(max_length=150)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'article_id', 'content', 'created_at', 'updated_at', 'user_id']
+        read_only_fields = ['id', 'user', 'article_id', 'created_at', 'updated_at', 'user_id']
+
+    def get_user(self, obj):
+        try:
+            user = User.objects.get(id=obj.user_id)
+            return UserSimpleSerializer(user).data
+        except User.DoesNotExist:
+            return None
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     pass
 
@@ -114,3 +151,9 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'avatar', 'is_staff', 'is_superuser')
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if not representation.get('avatar'):
+            representation['avatar'] = DEFAULT_AVATAR_URL
+        return representation

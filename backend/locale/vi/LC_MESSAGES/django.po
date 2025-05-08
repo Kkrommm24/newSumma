@@ -44,15 +44,15 @@ msgstr ""
 
 #: user/serializers/serializers.py:135 user/serializers/serializers.py:183
 msgid "Confirm password"
-msgstr ""
+msgstr "Xác nhận mật khẩu"
 
 #: user/serializers/serializers.py:146
 msgid "A user with that email already exists."
-msgstr ""
+msgstr "Một người dùng với email vừa nhập đã tồn tại"
 
 #: user/serializers/serializers.py:151
 msgid "A user with that username already exists."
-msgstr ""
+msgstr "Một người dùng với username vừa nhập đã tồn tại"
 
 #: user/serializers/serializers.py:156 user/serializers/serializers.py:188
 msgid "Mật khẩu xác nhận không khớp."

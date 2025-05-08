@@ -21,8 +21,10 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   const { isAuthenticated } = useAuth();
   
   const requestKey = getRequestKey(fetchMode, searchQuery);
-
   const isFetching = useRef(false); 
+
+  // Cờ để kiểm soát việc scroll, chỉ scroll khi card được chọn bằng cách click vào card
+  const deliberatelySelectedForScroll = useRef(false);
 
   const { 
       items: newsItems = [], 
@@ -56,13 +58,14 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   }, [dispatch, fetchMode, searchQuery, requestKey, newsStatus]);
 
   useEffect(() => {
-    if (selectedCardId && cardRefs.current[selectedCardId]) {
+    if (selectedCardId && cardRefs.current[selectedCardId] && deliberatelySelectedForScroll.current) {
         cardRefs.current[selectedCardId].scrollIntoView({
             behavior: 'smooth',
             block: 'center'
         });
+        deliberatelySelectedForScroll.current = false; // Reset cờ sau khi scroll
     }
-  }, [selectedCardId]);
+  }, [selectedCardId]); // Chỉ phụ thuộc vào selectedCardId, nhưng kiểm soát bằng cờ
 
   const fetchMoreData = useCallback(() => {
     const currentIsFetching = isFetching.current; 
@@ -83,7 +86,12 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
   }, [dispatch, fetchMode, searchQuery, requestKey, hasMore, currentPage]);
 
   const handleCardClick = (id) => {
-    setSelectedCardId(id);
+    if (selectedCardId !== id) {
+        setSelectedCardId(id);
+        deliberatelySelectedForScroll.current = true;
+    } else {
+        deliberatelySelectedForScroll.current = false; 
+    }
   };
 
   const handleBookmarkToggle = useCallback(async (articleId, isCurrentlyBookmarked) => {
@@ -155,6 +163,7 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
                 userVote={item.userVote}
                 upvotes={item.upvotes}
                 downvotes={item.downvotes}
+                commentCount={item.comment_count}
                 isBookmarked={isBookmarked}
                 onBookmarkToggle={handleBookmarkToggle}
                 showBookmarkButton={isAuthenticated}
