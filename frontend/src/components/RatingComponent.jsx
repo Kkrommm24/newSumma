@@ -28,8 +28,7 @@ const RatingComponent = ({ onSubmitFeedback, initialVote, upvotes, downvotes }) 
   return (
     <div className="flex flex-col items-center space-y-1 p-1">
       <div className="flex items-center space-x-1">
-        <Text type="secondary" className="mr-2 text-sm">Bạn thấy tóm tắt này thế 
-        nào?</Text>
+        <Text type="secondary" className="mr-2 text-sm">Bạn có muốn chúng tôi tóm tắt lại bài viết không?</Text>
         <Button
           type={liked === true ? "primary" : "text"}
           icon={liked === true ? likeIcon : <Text type="secondary">{likeIcon}</Text>}

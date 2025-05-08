@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Drawer, Typography, App } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Drawer, Typography, App, Spin, Badge } from 'antd';
 import { simpleActionIconsConfig } from "./InteractiveButtons";
 import RatingComponent from "./RatingComponent";
 import CommentSection from './CommentSection';
@@ -38,28 +38,55 @@ const NewsCard = ({
   userVote, 
   upvotes: initialUpvotes, 
   downvotes: initialDownvotes, 
+  commentCount: initialCommentCount,
   isBookmarked,
   onBookmarkToggle,
   showBookmarkButton = true
 }) => {
+
   const { message: messageApi } = App.useApp();
   const [isCommentDrawerVisible, setIsCommentDrawerVisible] = useState(false);
   const [displayUpvotes, setDisplayUpvotes] = useState(initialUpvotes || 0);
   const [displayDownvotes, setDisplayDownvotes] = useState(initialDownvotes || 0);
   const [currentUserVote, setCurrentUserVote] = useState(userVote);
-  const [comments, setComments] = useState([
-    { author: 'Người dùng A', content: 'Bài viết rất hay!', avatar: 'https://zos.alipayobjects.com/rmsportal/ODTLcjxAfvqbxHnVXCYX.png' },
-    { author: 'Người dùng B', content: 'Tóm tắt khá ổn.' },
-  ]);
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [displayCommentCount, setDisplayCommentCount] = useState(initialCommentCount || 0);
 
   useEffect(() => {
     setDisplayUpvotes(initialUpvotes || 0);
     setDisplayDownvotes(initialDownvotes || 0);
     setCurrentUserVote(userVote);
-  }, [initialUpvotes, initialDownvotes, userVote]);
+    setDisplayCommentCount(initialCommentCount || 0);
+  }, [initialUpvotes, initialDownvotes, userVote, initialCommentCount]);
+
+  const fetchComments = useCallback(async () => {
+    if (!id) return;
+    setIsCommentsLoading(true);
+    try {
+      const response = await axiosInstance.get(`/news/summaries/${id}/comments`);
+      const fetchedComments = response.data.map(comment => ({
+        id: comment.id,
+        author: comment.user ? comment.user.username : 'Người dùng ẩn danh',
+        content: comment.content,
+        avatar: comment.user ? comment.user.avatar : undefined,
+        created_at: comment.created_at,
+      }));
+      setComments(fetchedComments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      setDisplayCommentCount(fetchedComments.length);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      messageApi.error("Không thể tải bình luận. Vui lòng thử lại.");
+      setComments([]);
+    } finally {
+      setIsCommentsLoading(false);
+    }
+  }, [id, messageApi]);
 
   const showCommentDrawer = () => {
+    fetchComments();
     setIsCommentDrawerVisible(true);
   };
 
@@ -72,16 +99,37 @@ const NewsCard = ({
     setNewComment(e.target.value);
   };
 
-  const handleSubmitComment = () => {
-    if (!newComment.trim()) return;
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || !id) return;
     
-    const commentToAdd = {
-      author: 'Bạn',
-      content: newComment,
-    };
-    
-    setComments([...comments, commentToAdd]);
-    setNewComment('');
+    setIsSubmittingComment(true);
+    try {
+      const payload = { content: newComment };
+      const response = await axiosInstance.post(`/news/summaries/${id}/comments`, payload);
+      
+      if (response.status === 201 && response.data) {
+        fetchComments();
+        setNewComment('');
+        messageApi.success("Bình luận đã được gửi!");
+      } else {
+        messageApi.error(response.data?.detail || "Không thể gửi bình luận. Vui lòng thử lại.");
+      }
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+      let errorMessage = "Không thể gửi bình luận. Vui lòng thử lại.";
+      if (error.response && error.response.data) {
+        if (error.response.data.content) {
+            errorMessage = `Nội dung: ${error.response.data.content.join(', ')}`;
+        } else if (error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+        } else {
+            errorMessage = JSON.stringify(error.response.data);
+        }
+      }
+      messageApi.error(errorMessage);
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
   const handleFeedbackSubmit = async (newVote) => {
@@ -163,13 +211,15 @@ const NewsCard = ({
   const commentActionConfig = availableActionsConfig.find(a => a.key === 'comment');
   if (commentActionConfig) {
     cardActions.push(
-      <commentActionConfig.IconComponent 
-        key="comment" 
-        onClick={(e) => {
-          e.stopPropagation();
-          showCommentDrawer();
-        }} 
-      />
+      <Badge count={displayCommentCount} size="small" offset={[5, -2]}>
+        <commentActionConfig.IconComponent 
+          key="comment" 
+          onClick={(e) => {
+            e.stopPropagation();
+            showCommentDrawer();
+          }} 
+        />
+      </Badge>
     );
   }
 
@@ -264,12 +314,19 @@ const NewsCard = ({
         width={450}
         destroyOnClose
       >
-        <CommentSection 
-          comments={comments}
-          newComment={newComment}
-          onNewCommentChange={handleNewCommentChange}
-          onSubmitComment={handleSubmitComment}
-        />
+        {isCommentsLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <CommentSection 
+            comments={comments}
+            newComment={newComment}
+            onNewCommentChange={handleNewCommentChange}
+            onSubmitComment={handleSubmitComment}
+            isSubmitting={isSubmittingComment}
+          />
+        )}
       </Drawer>
     </>
   );

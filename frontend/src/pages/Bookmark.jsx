@@ -53,7 +53,7 @@ function Bookmark() {
     setDetailError(null);
     setSelectedArticleSummary(null); 
     try {
-      const response = await axiosInstance.get(`/news/articles/${articleId}/summary/`);
+      const response = await axiosInstance.get(`/news/articles/${articleId}`);
       setSelectedArticleSummary(response.data);
     } catch (err) {
       console.error(`Error fetching summary for article ${articleId}:`, err);

@@ -25,7 +25,8 @@ def get_recommended_articles(request):
         paginated_summaries = paginator.paginate_queryset(final_summaries, request, view=None)
 
         serializer_context = {
-            'articles': articles_dict
+            'articles': articles_dict,
+            'request': request
         }
         
         serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
