@@ -37,22 +37,37 @@ function Profile() {
     const { logout } = useAuth();
 
     useEffect(() => {
+        let isMounted = true;
         const fetchProfile = async () => {
             try {
                 setLoading(true);
                 const data = await AuthService.getUserProfile();
-                setProfile(data);
-                profileForm.setFieldsValue(data);
-                setPreviewImage(data.avatar);
+                if (isMounted) {
+                    setProfile(data);
+                }
             } catch (error) {
-                console.error("Failed to fetch profile:", error);
-                messageApi.error(getErrorMessage(error));
+                if (isMounted) {
+                    console.error("Failed to fetch profile:", error);
+                    messageApi.error(getErrorMessage(error));
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
         fetchProfile();
+        return () => {
+            isMounted = false;
+        };
     }, []);
+
+    useEffect(() => {
+        if (profile) {
+            profileForm.setFieldsValue(profile);
+            setPreviewImage(profile.avatar);
+        }
+    }, [profile, profileForm]);
 
     const handleProfileUpdate = async (values) => {
         setUpdating(true);

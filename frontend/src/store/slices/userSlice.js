@@ -5,7 +5,7 @@ export const fetchFavoriteKeywords = createAsyncThunk(
   'user/fetchFavoriteKeywords',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/user/fav-words');
+      const response = await axiosInstance.get('/user/fav-words/');
       return response.data.favorite_keywords || [];
     } catch (error) {
       console.error("Error fetching keywords:", error.response || error);
@@ -18,7 +18,7 @@ export const addFavoriteKeyword = createAsyncThunk(
   'user/addFavoriteKeyword',
   async (keyword, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.patch('/user/fav-words', { keywords: [keyword] });
+      const response = await axiosInstance.patch('/user/fav-words/', { keywords: [keyword] });
       return response.data.favorite_keywords || [];
     } catch (error) {
       console.error("Error adding keyword:", error.response || error);
@@ -31,7 +31,7 @@ export const deleteFavoriteKeyword = createAsyncThunk(
   'user/deleteFavoriteKeyword',
   async (keyword, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.delete('/user/fav-words', { data: { keywords: [keyword] } });
+      const response = await axiosInstance.delete('/user/fav-words/', { data: { keywords: [keyword] } });
       return response.data.favorite_keywords || [];
     } catch (error) {
       console.error("Error deleting keyword:", error.response || error);
@@ -44,8 +44,8 @@ export const fetchSearchHistory = createAsyncThunk(
   'user/fetchSearchHistory',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/user/search-history');
-      return response.data || [];
+      const response = await axiosInstance.get('/user/search-history/');
+      return response.data.items || [];
     } catch (error) {
       console.error("Error fetching search history:", error.response || error);
       return rejectWithValue(error.response?.data || 'Failed to fetch search history');
@@ -57,7 +57,7 @@ export const addSearchHistory = createAsyncThunk(
   'user/addSearchHistory',
   async (query, { dispatch, rejectWithValue }) => {
     try {
-      await axiosInstance.post('/user/search-history', { query: query.trim() });
+      await axiosInstance.post('/user/search-history/', { query: query.trim() });
       dispatch(fetchSearchHistory()); 
       return query;
     } catch (error) { 
@@ -71,7 +71,7 @@ export const deleteSearchHistoryItem = createAsyncThunk(
   'user/deleteSearchHistoryItem',
   async (queryToDelete, { dispatch, rejectWithValue }) => {
     try {
-      await axiosInstance.delete('/user/search-history', { data: { queries: [queryToDelete] } });
+      await axiosInstance.delete('/user/search-history/', { data: { queries: [queryToDelete] } });
       dispatch(fetchSearchHistory());
       return queryToDelete;
     } catch (error) {
@@ -85,8 +85,8 @@ export const fetchBookmarks = createAsyncThunk(
   'user/fetchBookmarks',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/user/bookmarks');
-      return response.data || []; 
+      const response = await axiosInstance.get('/user/bookmarks/');
+      return response.data.items || []; 
     } catch (error) {
       console.error("Error fetching bookmarks:", error.response || error);
       return rejectWithValue(error.response?.data || 'Failed to fetch bookmarks');
@@ -98,7 +98,7 @@ export const removeBookmark = createAsyncThunk(
   'user/removeBookmark',
   async (articleId, { dispatch, rejectWithValue }) => {
     try {
-      await axiosInstance.delete('/user/bookmarks', { data: { article_id: articleId } });
+      await axiosInstance.delete('/user/bookmarks/', { data: { article_id: articleId } });
       return articleId;
     } catch (error) {
       console.error('[userSlice] Error removing bookmark API call:', error.response || error);
@@ -113,7 +113,7 @@ export const addBookmark = createAsyncThunk(
   'user/addBookmark',
   async (articleId, { dispatch, rejectWithValue }) => {
     try {
-      await axiosInstance.post('/user/bookmarks', { article_id: articleId });
+      await axiosInstance.post('/user/bookmarks/', { article_id: articleId });
       dispatch(fetchBookmarks()); 
       return articleId;
     } catch (error) {
@@ -122,7 +122,6 @@ export const addBookmark = createAsyncThunk(
     }
   }
 );
-
 
 const initialState = {
   favoriteKeywords: {
@@ -139,6 +138,17 @@ const initialState = {
     items: [], 
     status: 'idle', // idle | loading | succeeded | failed
     error: null,
+  },
+  downvotes: {
+    items: [],
+    pending: [],
+    status: 'idle',
+    error: null,
+  },
+  votes: {
+    items: [],
+    status: 'idle',
+    error: null,
   }
 };
 
@@ -147,6 +157,40 @@ const userSlice = createSlice({
   initialState,
   reducers: {
     resetUserState: () => initialState,
+    addDownvote: (state, action) => {
+      if (!state.downvotes.pending.includes(action.payload)) {
+        state.downvotes.pending.push(action.payload);
+      }
+      // Thêm vào votes
+      const existingVoteIndex = state.votes.items.findIndex(v => v.summaryId === action.payload);
+      if (existingVoteIndex !== -1) {
+        state.votes.items[existingVoteIndex].isUpvote = false;
+      } else {
+        state.votes.items.push({ summaryId: action.payload, isUpvote: false });
+      }
+    },
+    removeDownvote: (state, action) => {
+      state.downvotes.pending = state.downvotes.pending.filter(id => id !== action.payload);
+      // Xóa khỏi votes
+      state.votes.items = state.votes.items.filter(v => v.summaryId !== action.payload);
+    },
+    confirmDownvote: (state, action) => {
+      if (!state.downvotes.items.includes(action.payload)) {
+        state.downvotes.items.push(action.payload);
+      }
+      state.downvotes.pending = state.downvotes.pending.filter(id => id !== action.payload);
+    },
+    addUpvote: (state, action) => {
+      const existingVoteIndex = state.votes.items.findIndex(v => v.summaryId === action.payload);
+      if (existingVoteIndex !== -1) {
+        state.votes.items[existingVoteIndex].isUpvote = true;
+      } else {
+        state.votes.items.push({ summaryId: action.payload, isUpvote: true });
+      }
+    },
+    resetPendingDownvotes: (state) => {
+      state.downvotes.pending = [];
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -217,6 +261,9 @@ const userSlice = createSlice({
         state.bookmarks.status = 'succeeded';
         state.bookmarks.items = action.payload;
         state.bookmarks.error = null;
+        
+        state.downvotes.items = [];
+        state.downvotes.pending = [];
       })
       .addCase(fetchBookmarks.rejected, (state, action) => {
         state.bookmarks.status = 'failed';
@@ -245,6 +292,13 @@ const userSlice = createSlice({
   },
 });
 
-export const { resetUserState } = userSlice.actions;
+export const { 
+  resetUserState, 
+  addDownvote, 
+  removeDownvote, 
+  confirmDownvote, 
+  addUpvote,
+  resetPendingDownvotes 
+} = userSlice.actions;
 
 export default userSlice.reducer; 

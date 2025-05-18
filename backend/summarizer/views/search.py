@@ -50,7 +50,6 @@ class ArticleSummarySearchView(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
-            logger.error(f"Unhandled error in ArticleSummarySearchView for query '{query}': {e}", exc_info=True)
             return Response(
                 {"error": "An unexpected error occurred."}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -23,33 +23,37 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await AuthService.login(values.username, values.password);
-      const loginSuccess = await login(data.access, data.refresh);
+      const loginData = await AuthService.login(values.username, values.password);
 
-      if (loginSuccess) {
-        setCheckingPrefs(true);
-        try {
-          const prefsResponse = await axiosInstance.get('/user/fav-words');
-          const favoriteKeywords = prefsResponse.data?.favorite_keywords || [];
-          
-          if (favoriteKeywords.length === 0) {
-            navigate('/favourite-categories', { replace: true });
-          } else {
+      if (loginData && loginData.access && loginData.user) {
+        const loginSuccess = await login(loginData.access, loginData.refresh, loginData.user);
+
+        if (loginSuccess) {
+          setCheckingPrefs(true);
+          try {
+            const prefsResponse = await axiosInstance.get('/user/fav-words/');
+            const favoriteKeywords = prefsResponse.data?.favorite_keywords || [];
+            
+            if (favoriteKeywords.length === 0) {
+              navigate('/favourite-categories', { replace: true });
+            } else {
+              navigate(from, { replace: true });
+            }
+          } catch (prefsError) {
             navigate(from, { replace: true });
+          } finally {
+            setCheckingPrefs(false);
           }
-        } catch (prefsError) {
-          navigate(from, { replace: true });
-        } finally {
-          setCheckingPrefs(false);
+        } else {
+          setError('Đã xảy ra lỗi khi xử lý thông tin đăng nhập.');
         }
       } else {
-        setError('Xử lý thông tin đăng nhập thất bại.');
+        setError('Dữ liệu đăng nhập không hợp lệ từ server.');
       }
-    } catch (err) {
+    } catch (error) {
       const defaultErrorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.';
-      const backendError = err.response?.data?.detail || defaultErrorMessage;
-      setError(backendError); 
-      console.log("[LoginPage] setError called with:", backendError);
+      const backendError = error.response?.data?.detail || defaultErrorMessage;
+      setError(backendError);
     } finally {
       setLoading(false);
     }

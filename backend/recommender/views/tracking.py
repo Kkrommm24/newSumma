@@ -1,0 +1,95 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from recommender.models import SummaryClickLog
+from news.models import NewsSummary, ArticleStats
+from django.shortcuts import get_object_or_404
+from django.db.models import F
+
+from recommender.services.recommend_service import (
+    log_summary_view as log_summary_view_service,
+    handle_summary_click_for_ranking
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def log_summary_view_time(request):
+    summary_id = request.data.get('summary_id')
+    duration_seconds_str = request.data.get('duration_seconds')
+
+    if not summary_id:
+        return Response({"error": "Summary ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not duration_seconds_str: # Ensure it's not None or empty
+        return Response({"error": "Duration seconds is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        duration_seconds = int(duration_seconds_str)
+        if duration_seconds < 0:
+             return Response({"error": "Duration must be a non-negative integer."}, status=status.HTTP_400_BAD_REQUEST)
+    except (ValueError, TypeError): # Catch if duration_seconds_str is not a valid int string
+        return Response({"error": "Invalid duration_seconds format. Must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user if request.user.is_authenticated else None
+    user_id = user.id if user else None
+
+    try:
+        total_duration = log_summary_view_service(
+            user_id=user_id,
+            summary_id=summary_id,
+            duration_seconds=duration_seconds
+        )
+        
+        return Response({
+            "message": "View time logged successfully.",
+            "total_duration": total_duration
+        }, status=status.HTTP_201_CREATED)
+
+    except NewsSummary.DoesNotExist:
+        return Response({"error": "Summary not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": "Failed to log view time due to a server error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def track_source_click(request):
+    summary_id_from_request = request.data.get('summary_id')
+    if not summary_id_from_request:
+        return Response({"error": "Summary ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    current_user = request.user if request.user.is_authenticated else None
+    user_id_to_log = current_user.id if current_user else None
+    
+    try:
+        summary_object = get_object_or_404(NewsSummary, id=summary_id_from_request)
+        
+        # 1. Create SummaryClickLog
+        SummaryClickLog.objects.create(
+            user_id=user_id_to_log,
+            summary_id=summary_object.id
+        )
+
+        # 2. Update ArticleStats view_count for the corresponding article
+        if summary_object.article_id:
+            article_stats, created = ArticleStats.objects.get_or_create(
+                article_id=summary_object.article_id,
+                defaults={'view_count': 1} # Nếu tạo mới thì view đầu tiên
+            )
+            if not created:
+                ArticleStats.objects.filter(article_id=summary_object.article_id).update(view_count=F('view_count') + 1)
+        
+        # 3. Call service to process click for ranking updates
+        service_response = handle_summary_click_for_ranking(user_id_to_log, summary_object.id)
+        
+        return Response({
+            "message": "Click tracked and processed for ranking.",
+            "details": service_response.get("message")
+            }, status=status.HTTP_201_CREATED)
+            
+    except NewsSummary.DoesNotExist:
+        return Response({"error": "Summary not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": "Failed to track click due to a server error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 

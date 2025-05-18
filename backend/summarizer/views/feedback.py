@@ -42,7 +42,6 @@ def record_summary_feedback(request):
             except NewsSummary.DoesNotExist:
                  return Response({'status': 'error', 'message': 'Summary not found.'}, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                logger.exception(f"View: Lỗi khi kiểm tra lại summary {summary_id}: {e}")
                 return Response({'status': 'error', 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         article_published_at = None
@@ -57,9 +56,7 @@ def record_summary_feedback(request):
         if trigger_resummarize:
             try:
                 summarize_single_article_task.delay(article_id_str=str(summary_obj.article_id))
-                logger.info(f"View: Đã gửi yêu cầu tóm tắt lại cho bài viết {summary_obj.article_id} vào hàng đợi.")
             except Exception as task_error:
-                logger.error(f"View: Lỗi khi gửi task tóm tắt lại từ view cho bài viết {summary_obj.article_id}: {task_error}", exc_info=True)
                 pass
 
         return Response({
@@ -73,5 +70,4 @@ def record_summary_feedback(request):
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.exception(f"View: Lỗi không mong muốn khi xử lý feedback cho summary {summary_id}: {e}")
         return Response({'status': 'error', 'message': 'An unexpected error occurred in the view.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 

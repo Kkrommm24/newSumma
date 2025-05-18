@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout, App as AntApp } from 'antd';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
@@ -7,7 +7,6 @@ import Trending from './pages/Trending';
 import FavouriteCategories from './pages/FavouriteCategories';
 import Bookmark from './pages/Bookmark';
 import Profile from './pages/Profile';
-import Theme from './pages/Theme';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -16,6 +15,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import "./App.css";
+import ScrollToTop from './components/ScrollToTop';
 
 const { Content } = Layout;
 
@@ -78,20 +78,12 @@ const AppContent = () => {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/theme"
-              element={
-                <ProtectedRoute>
-                  <Theme />
-                </ProtectedRoute>
-              }
-            />
-
             {isAuthenticated && <Route path="*" element={<Navigate to="/" replace />} />}
             {!isAuthenticated && <Route path="*" element={<Navigate to="/login" replace />} />}
           </Routes>
         </Content>
       </Layout>
+      <ScrollToTop />
     </Layout>
   );
 };
@@ -99,11 +91,9 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
         <AntApp>
           <AppContent />
         </AntApp>
-      </Router>
     </AuthProvider>
   );
 }

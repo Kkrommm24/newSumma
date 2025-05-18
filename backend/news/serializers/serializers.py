@@ -1,6 +1,6 @@
 import os
 from rest_framework import serializers
-from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, SummaryFeedback, User, Comment
+from news.models import NewsArticle, Category, NewsArticleCategory, NewsSummary, SummaryFeedback, User, Comment, ArticleStats
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 DEFAULT_AVATAR_URL = os.getenv('DEFAULT_AVATAR_URL', 'https://example.com/default-avatar.png')
@@ -38,72 +38,110 @@ class ArticleDetailSerializer(serializers.ModelSerializer):
     def get_has_summary(self, obj):
         return NewsSummary.objects.filter(article_id=obj.id).exists()
 
+class UserBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'avatar')
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance and not representation.get('avatar'):
+            representation['avatar'] = DEFAULT_AVATAR_URL
+        return representation
+
+class CategoryBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('id', 'name')
+
+class ArticleForSummarySerializer(serializers.ModelSerializer):
+    categories = CategoryBasicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = NewsArticle
+        fields = (
+            'id', 
+            'title', 
+            'url', 
+            'published_at', 
+            'image_url',
+            'categories'
+        )
+        read_only_fields = fields
+
 class SummarySerializer(serializers.ModelSerializer):
-    title = serializers.SerializerMethodField()
-    image_url = serializers.SerializerMethodField()
-    url = serializers.SerializerMethodField()
-    keywords = serializers.SerializerMethodField()
-    published_at = serializers.SerializerMethodField()
+    article = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
-        fields = [
-            'id', 
-            'article_id', 
-            'title',
+        fields = (
+            'id',
+            'article_id',
+            'article',
             'summary_text',
-            'image_url',
-            'url',
-            'keywords',
-            'published_at',
-            'upvotes', 
-            'downvotes', 
+            'upvotes',
+            'downvotes',
             'created_at',
+            'updated_at',
             'user_vote',
-            'comment_count'
-        ]
+            'comment_count',
+        )
 
-    def get_title(self, obj):
-        articles = self.context.get('articles', {})
-        article = articles.get(str(obj.article_id))
-        return article.title if article else None
+    def get_article(self, obj: NewsSummary):
+        articles_dict = self.context.get('articles', {})
+        article_instance = articles_dict.get(str(obj.article_id))
 
-    def get_image_url(self, obj):
-        articles = self.context.get('articles', {})
-        article = articles.get(str(obj.article_id))
-        return article.image_url if article else None
+        if article_instance:
+            return ArticleForSummarySerializer(article_instance, context=self.context).data
+        
+        return None
 
-    def get_url(self, obj):
-        articles = self.context.get('articles', {})
-        article = articles.get(str(obj.article_id))
-        return article.url if article else None
-
-    def get_published_at(self, obj):
-        articles = self.context.get('articles', {})
-        article = articles.get(str(obj.article_id))
-        return article.published_at if article else None
-
-    def get_keywords(self, obj):
-        return getattr(obj, 'source_keywords', [])
-
-    def get_user_vote(self, obj):
+    def get_user_vote(self, obj: NewsSummary):
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
             try:
                 feedback = SummaryFeedback.objects.get(summary_id=obj.id, user_id=request.user.id)
                 return feedback.is_upvote
             except SummaryFeedback.DoesNotExist:
                 return None
-            except Exception as e:
-                return None
         return None
 
-    def get_comment_count(self, obj):
-        if obj.article_id:
-            return Comment.objects.filter(article_id=obj.article_id).count()
-        return 0
+    def get_comment_count(self, obj: NewsSummary):
+        try:
+            article_stats = ArticleStats.objects.get(article_id=obj.article_id)
+            return article_stats.comment_count
+        except ArticleStats.DoesNotExist:
+            return 0
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'user', 'article_id', 'content', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'article_id', 'created_at', 'updated_at')
+
+    def get_user(self, obj: Comment):
+        if obj.user_id:
+            try:
+                user_instance = User.objects.get(id=obj.user_id)
+                return UserBasicSerializer(user_instance).data
+            except User.DoesNotExist:
+                return {
+                    'id': None, 
+                    'username': 'Người dùng ẩn danh',
+                    'avatar': DEFAULT_AVATAR_URL
+                }
+        return {
+            'id': None, 
+            'username': 'Người dùng ẩn danh',
+            'avatar': DEFAULT_AVATAR_URL
+        }
+
+    def create(self, validated_data):
+        return Comment.objects.create(**validated_data)
 
 class UserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -112,25 +150,9 @@ class UserSimpleSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        if not representation.get('avatar'):
+        if instance and not representation.get('avatar'):
             representation['avatar'] = DEFAULT_AVATAR_URL
         return representation
-
-class CommentSerializer(serializers.ModelSerializer):
-    user = serializers.SerializerMethodField()
-    content = serializers.CharField(max_length=150)
-
-    class Meta:
-        model = Comment
-        fields = ['id', 'user', 'article_id', 'content', 'created_at', 'updated_at', 'user_id']
-        read_only_fields = ['id', 'user', 'article_id', 'created_at', 'updated_at', 'user_id']
-
-    def get_user(self, obj):
-        try:
-            user = User.objects.get(id=obj.user_id)
-            return UserSimpleSerializer(user).data
-        except User.DoesNotExist:
-            return None
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     pass
@@ -154,6 +176,6 @@ class UserSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        if not representation.get('avatar'):
+        if instance and not representation.get('avatar'):
             representation['avatar'] = DEFAULT_AVATAR_URL
         return representation

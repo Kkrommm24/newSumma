@@ -57,5 +57,4 @@ def send_password_reset_email(recipient_email, reset_link):
         )
         return "Password reset email sent successfully!"
     except Exception as e:
-        logger.error(f"Error sending password reset email to {recipient_email}: {e}")
         raise 

@@ -32,20 +32,32 @@ function Bookmark() {
     error: bookmarksError 
   } = useSelector((state) => state.user.bookmarks);
 
+  const downvotedArticles = useSelector(state => state.user.downvotes.items);
+  const pendingDownvotes = useSelector(state => state.user.downvotes.pending);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [selectedArticleSummary, setSelectedArticleSummary] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const [hasInitialFetch, setHasInitialFetch] = useState(false);
 
   const [filterCategory, setFilterCategory] = useState(null);
   const [filterDateRange, setFilterDateRange] = useState([null, null]);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      dispatch(fetchBookmarks());
+    if (!authLoading && isAuthenticated && !hasInitialFetch && bookmarksStatus === 'idle') {
+      dispatch(fetchBookmarks())
+        .unwrap()
+        .then((data) => {
+          setHasInitialFetch(true);
+        })
+        .catch((error) => {
+          console.error('Error fetching bookmarks:', error);
+          message.error('Không thể tải danh sách bookmark.');
+        });
     }
-  }, [dispatch, authLoading, isAuthenticated]);
+  }, [dispatch, authLoading, isAuthenticated, hasInitialFetch, bookmarksStatus]);
 
   const fetchSummaryForArticle = useCallback(async (articleId) => {
     if (!articleId) return;
@@ -53,7 +65,7 @@ function Bookmark() {
     setDetailError(null);
     setSelectedArticleSummary(null); 
     try {
-      const response = await axiosInstance.get(`/news/articles/${articleId}`);
+      const response = await axiosInstance.get(`/news/articles/${articleId}/summary/`);
       setSelectedArticleSummary(response.data);
     } catch (err) {
       console.error(`Error fetching summary for article ${articleId}:`, err);
@@ -98,6 +110,10 @@ function Bookmark() {
   };
 
   const availableCategories = useMemo(() => {
+    if (!Array.isArray(bookmarks)) {
+      return [];
+    }
+
     const categories = new Map();
     bookmarks.forEach(item => {
       if (item?.article?.categories) {
@@ -112,12 +128,27 @@ function Bookmark() {
   }, [bookmarks]);
   
   const filteredBookmarks = useMemo(() => {
-      let items = bookmarks.filter(item => item && item.article);
+      if (!Array.isArray(bookmarks)) {
+        return [];
+      }
+
+      let items = bookmarks.filter(item => {
+        const isValid = item && item.article;
+        if (!isValid) {
+          console.log('Invalid bookmark item:', item);
+        }
+        return isValid;
+      });
+      
+      // Filter out downvoted articles
+      items = items.filter(item => 
+        !downvotedArticles.includes(item.article.id) && 
+        !pendingDownvotes.includes(item.article.id)
+      );
       
       if (searchTerm) {
           items = items.filter(item => 
             item.article.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            item.article.summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             item.article.summary_text?.toLowerCase().includes(searchTerm.toLowerCase())
           );
       }
@@ -136,9 +167,9 @@ function Bookmark() {
               return publishedDate.isBetween(startDate, endDate.add(1, 'day'), null, '[)');
           });
       }
-      
+
       return items;
-  }, [bookmarks, searchTerm, filterCategory, filterDateRange]);
+  }, [bookmarks, searchTerm, filterCategory, filterDateRange, downvotedArticles, pendingDownvotes]);
   
   const handleTitleClick = (article) => {
     setSelectedArticle(article);
@@ -188,7 +219,7 @@ function Bookmark() {
           id: selectedArticle.id,
           articleId: selectedArticle.id,
           title: selectedArticle.title,
-          summary: 'Đang tải tóm tắt...',
+          summary: detailLoading ? '' : (detailError || 'Không có tóm tắt để hiển thị.'),
           imageUrl: selectedArticle.image_url,
           sourceUrl: selectedArticle.url,
           keywords: [],
@@ -198,10 +229,6 @@ function Bookmark() {
           downvotes: 0,
           isBookmarked: true
       };
-      
-      if (detailError && !selectedArticleSummary) {
-          newsCardData.summary = detailError;
-      }
       
       return (
           <div className="p-4 md:p-8">
@@ -215,11 +242,12 @@ function Bookmark() {
               </Button>
               <Row justify="center" style={{ paddingTop: '0', paddingBottom: '2rem' }}>
                   <Col style={{ maxWidth: '600px', width: '100%' }}>
-                      {detailLoading && <div className="text-center py-10"><Spin tip="Đang tải chi tiết..." /></div>}
-                      {!detailLoading && (
+                    <Spin spinning={detailLoading} tip="Đang tải chi tiết..." size="large">
+                        {(!detailLoading && (selectedArticleSummary || detailError)) && (
                           <NewsCard
                               {...newsCardData}
                               showBookmarkButton={true}
+                              showRating={false}
                               onBookmarkToggle={(articleIdFromCard, isBookmarkedFromCard) => {
                                   if (articleIdFromCard && isBookmarkedFromCard) {
                                       showDeleteConfirm(articleIdFromCard, selectedArticle.title);
@@ -227,13 +255,17 @@ function Bookmark() {
                                       message.error('Không thể thực hiện thao tác này.');
                                   }
                               }}
+                              onHideArticle={() => {
+                                  handleBackToList();
+                              }}
                           />
-                      )}
-                      {detailError && !detailLoading && (
-                          <div className="mt-4 text-center">
-                              <Alert message="Lỗi" description={detailError} type="error" showIcon />
-                          </div>
-                      )}
+                        )}
+                        {!detailLoading && !selectedArticleSummary && !detailError && selectedArticle && (
+                             <div className="mt-4 text-center p-8 border border-dashed rounded-md">
+                                 <Text type="secondary">Không có tóm tắt chi tiết cho bài viết này.</Text>
+                             </div>
+                        )}
+                    </Spin>
                   </Col>
               </Row>
           </div>
@@ -288,23 +320,26 @@ function Bookmark() {
                         format="DD/MM/YYYY"
                         style={{ width: '100%' }}
                         disabled={isLoading}
+                        value={filterDateRange[0] && filterDateRange[1] ? filterDateRange : null}
+                        allowEmpty={[true, true]}
                     />
                 </div>
            </Col>
        </Row>
 
       <Card>
-          {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
-          ) : displayError ? (
+        <Spin spinning={isLoading} tip="Đang tải danh sách bookmark..." size="large">
+          {!isLoading && displayError && (
             <Alert message="Lỗi" description={typeof displayError === 'string' ? displayError : 'Không thể tải bookmark.'} type="error" showIcon />
-          ) : filteredBookmarks.length === 0 ? (
+          )}
+          {!isLoading && !displayError && filteredBookmarks.length === 0 && (
             searchTerm || filterCategory || filterDateRange[0] ? ( 
                 <Empty description={<Text>Không tìm thấy bookmark nào phù hợp.</Text>} />
             ) : (
                 <Empty description="Bạn chưa lưu bài viết nào."/>
             )
-          ) : (
+          )}
+          {!isLoading && !displayError && filteredBookmarks.length > 0 && (
             <List
               itemLayout="horizontal"
               dataSource={filteredBookmarks}
@@ -333,6 +368,7 @@ function Bookmark() {
               }
             />
           )}
+        </Spin>
       </Card>
     </div>
   );
