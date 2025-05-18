@@ -3,21 +3,23 @@ from news.models import SearchHistory
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from rest_framework.exceptions import APIException
 
 logger = logging.getLogger(__name__)
 
+class SearchHistoryException(APIException):
+    status_code = 500
+    default_detail = 'Đã xảy ra lỗi khi xử lý lịch sử tìm kiếm.'
+    default_code = 'search_history_error'
 
 def get_user_search_history(user_id):
     if not user_id:
-        logger.warning("Attempted to get search history with no user ID.")
         return SearchHistory.objects.none()
 
     try:
         return SearchHistory.objects.filter(user_id=user_id).order_by('-searched_at')
     except Exception as e:
-        logger.error(f"Database error fetching search history for user {user_id}: {e}", exc_info=True)
-        raise
-
+        raise SearchHistoryException(f"Lỗi khi lấy lịch sử tìm kiếm: {str(e)}")
 
 def add_user_search_history(user_id, query: str) -> SearchHistory:
     stripped_query = query.strip()
@@ -30,21 +32,13 @@ def add_user_search_history(user_id, query: str) -> SearchHistory:
             query=stripped_query,
             defaults={'searched_at': timezone.now()} 
         )
-        
-        if created:
-            logger.info(f"Added new search history for user {user_id}: '{stripped_query}'")
-        else:
-            logger.info(f"Updated searched_at for existing history for user {user_id}: '{stripped_query}'")
             
         return history_entry
     except Exception as e:
-        logger.error(f"Database error adding/updating search history for user {user_id}: {e}", exc_info=True)
-        raise
-
+        raise SearchHistoryException(f"Lỗi khi lưu lịch sử tìm kiếm: {str(e)}")
 
 def delete_search_histories(user_id, queries_to_delete: list[str]) -> int:
     if not user_id or not queries_to_delete:
-        logger.warning("User ID or queries list to delete is empty.")
         return 0
 
     try:
@@ -54,13 +48,7 @@ def delete_search_histories(user_id, queries_to_delete: list[str]) -> int:
                 query__in=queries_to_delete
             ).delete()
             
-            if deleted_count > 0:
-                logger.info(f"Deleted {deleted_count} search history entries for user {user_id}.")
-            # else:
-                # logger.info(f"No matching search history entries found to delete for user {user_id} with queries: {queries_to_delete}")
-            
             return deleted_count
 
     except Exception as e:
-        logger.error(f"Database error deleting search history for user {user_id}: {e}", exc_info=True)
-        raise 
+        raise SearchHistoryException(f"Lỗi khi xóa lịch sử tìm kiếm: {str(e)}") 

@@ -54,7 +54,6 @@ def get_summaries(request):
         return paginator.get_paginated_response(serializer.data)
 
     except Exception as e:
-        logger.exception(f"Lỗi khi lấy summaries: {str(e)}")
         return Response(
             {
                 'status': 'error',
@@ -70,7 +69,6 @@ def trigger_bulk_summarization(request):
     try:
         limit = request.data.get('limit', 10)
         task = generate_article_summaries.delay(limit=limit)
-        logger.info(f"View: Đã gửi task tóm tắt ({task.id}) đến Celery với limit={limit}.")
         return Response(
             {
                 'status': 'queued',
@@ -80,7 +78,6 @@ def trigger_bulk_summarization(request):
             status=status.HTTP_202_ACCEPTED
         )
     except Exception as e:
-        logger.exception(f"View: Lỗi khi gửi task tóm tắt đến Celery: {str(e)}")
         return Response(
             {
                 'status': 'error',
@@ -113,7 +110,6 @@ def trigger_single_summarization(request, article_pk):
         )
 
     except Exception as e:
-        logger.exception(f"View: Lỗi khi gửi task tóm tắt đơn lẻ cho ID {article_pk}: {str(e)}")
         return Response(
             {
                 'status': 'error',

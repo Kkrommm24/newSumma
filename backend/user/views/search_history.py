@@ -16,13 +16,16 @@ class UserSearchHistoryView(APIView):
         try:
             histories = get_user_search_history(user.id)
             serializer = UserSearchHistorySerializer(histories, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({
+                "items": serializer.data,
+                "status": "success"
+            }, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Error fetching SearchHistory for user {user.id}: {e}", exc_info=True)
-            return Response(
-                {"error": "An error occurred while fetching search history."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({
+                "error": str(e),
+                "items": [],
+                "status": "error"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -33,16 +36,28 @@ class UserSearchHistoryView(APIView):
             try:
                 new_history = add_user_search_history(user.id, query)
                 output_serializer = UserSearchHistorySerializer(new_history)
-                return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+                return Response({
+                    "items": [output_serializer.data],
+                    "status": "success"
+                }, status=status.HTTP_201_CREATED)
             except ValueError as ve:
-                return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({
+                    "error": str(ve),
+                    "items": [],
+                    "status": "error"
+                }, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                return Response(
-                    {"error": "An error occurred while saving search history."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({
+                    "error": str(e),
+                    "items": [],
+                    "status": "error"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "error": serializer.errors,
+                "items": [],
+                "status": "error"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, *args, **kwargs):
         user = request.user
@@ -56,16 +71,25 @@ class UserSearchHistoryView(APIView):
                 if deleted_count > 0:
                     remaining_histories = get_user_search_history(user.id)
                     serializer = UserSearchHistorySerializer(remaining_histories, many=True)
-                    return Response(serializer.data, status=status.HTTP_200_OK) 
+                    return Response({
+                        "items": serializer.data,
+                        "status": "success"
+                    }, status=status.HTTP_200_OK) 
                 else:
-                    return Response(
-                        {"detail": "No matching search history entries found to delete."},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
+                    return Response({
+                        "error": "No matching search history entries found to delete.",
+                        "items": [],
+                        "status": "error"
+                    }, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                return Response(
-                    {"error": "An error occurred while deleting search history."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({
+                    "error": str(e),
+                    "items": [],
+                    "status": "error"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            return Response(input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "error": input_serializer.errors,
+                "items": [],
+                "status": "error"
+            }, status=status.HTTP_400_BAD_REQUEST)

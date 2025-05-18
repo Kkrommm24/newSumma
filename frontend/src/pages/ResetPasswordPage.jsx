@@ -29,7 +29,7 @@ const ResetPasswordPage = () => {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await axiosInstance.post('/user/password-reset-confirm', {
+      const response = await axiosInstance.post('/user/password-reset-confirm/', {
         password: values.password,
         password2: values.password2,
         reset_token: reset_token,

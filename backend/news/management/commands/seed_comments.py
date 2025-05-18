@@ -1,10 +1,11 @@
 import random
 from django.core.management.base import BaseCommand
-from django.db import transaction
-from news.models import Comment, User, NewsArticle
+from django.db import transaction, IntegrityError
+from news.models import Comment, User, NewsArticle, ArticleStats
+from django.db.models import Count
 
 class Command(BaseCommand):
-    help = 'Seed comments into the database'
+    help = 'Seed comments into the database and update ArticleStats'
 
     def handle(self, *args, **options):
         # Danh sách các mẫu comment đơn giản
@@ -26,6 +27,7 @@ class Command(BaseCommand):
             with transaction.atomic():
                 self.stdout.write("🗑️  Đang xóa tất cả Comment cũ...")
                 Comment.objects.all().delete()
+                self.stdout.write("🔄  Đang reset comment_count trong ArticleStats về 0 cho các bài viết có comment...")
 
                 users = list(User.objects.all()[:10])
                 articles = list(NewsArticle.objects.all()[:20])
@@ -41,13 +43,13 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.NOTICE(f"⏳ Seeding comments cho {len(articles)} bài viết và {len(users)} người dùng..."))
                 
                 comments_to_create = []
-                num_comments = 50
+                num_comments_to_seed = 50
+                article_comment_counts = {article.id: 0 for article in articles}
 
-                for i in range(num_comments):
+                for i in range(num_comments_to_seed):
                     user = random.choice(users)
                     article = random.choice(articles)
                     
-                    # Chọn một mẫu ngẫu nhiên và điền thông tin (nếu có)
                     template = random.choice(comment_templates)
                     content = template.format(topic=random.choice(topics), user=user.username)
                     
@@ -58,11 +60,26 @@ class Command(BaseCommand):
                             content=content
                         )
                     )
+                    article_comment_counts[article.id] += 1
+
                     if (i + 1) % 10 == 0:
-                         self.stdout.write(f"   ➕ Đã chuẩn bị {i + 1}/{num_comments} comments...")
+                         self.stdout.write(f"   ➕ Đã chuẩn bị {i + 1}/{num_comments_to_seed} comments...")
 
                 Comment.objects.bulk_create(comments_to_create)
                 self.stdout.write(self.style.SUCCESS(f"✔ Đã tạo thành công {len(comments_to_create)} comments."))
 
+                self.stdout.write("🔄  Đang cập nhật comment_count trong ArticleStats...")
+                articles_updated_stats = 0
+                for article_id, count in article_comment_counts.items():
+                    if count > 0:
+                        ArticleStats.objects.update_or_create(
+                            article_id=article_id,
+                            defaults={'comment_count': count}
+                        )
+                        articles_updated_stats += 1
+                self.stdout.write(self.style.SUCCESS(f"✔ Đã cập nhật comment_count cho {articles_updated_stats} bài viết trong ArticleStats."))
+
+        except IntegrityError as e:
+            self.stderr.write(self.style.ERROR(f"❌ Lỗi IntegrityError khi seed comments (có thể do article_id hoặc user_id không hợp lệ): {str(e)}"))
         except Exception as e:
-            self.stderr.write(self.style.ERROR(f"❌ Lỗi khi seed comments: {str(e)}")) 
+            self.stderr.write(self.style.ERROR(f"❌ Lỗi khác khi seed comments: {str(e)}")) 

@@ -1,7 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist
-from news.models import UserSavedArticle, NewsArticle, Category, NewsArticleCategory
+from news.models import UserSavedArticle, NewsArticle, Category, NewsArticleCategory, ArticleStats
 from rest_framework import status
 from rest_framework.exceptions import APIException
+from django.db.models import F
 
 class BookmarkException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
@@ -32,6 +33,13 @@ def add_bookmark(user_id: str, article_id: str):
 
     try:
         UserSavedArticle.objects.create(user_id=user_id, article_id=article_id)
+        stats, created = ArticleStats.objects.get_or_create(
+            article_id=article_id,
+            defaults={'save_count': 1}
+        )
+        if not created:
+            ArticleStats.objects.filter(article_id=article_id).update(save_count=F('save_count') + 1)
+            
     except Exception as e:
         raise BookmarkException(f"Lỗi khi thêm bookmark: {e}")
 
@@ -39,6 +47,8 @@ def remove_bookmark(user_id: str, article_id: str):
     try:
         bookmark = UserSavedArticle.objects.get(user_id=user_id, article_id=article_id)
         bookmark.delete()
+        ArticleStats.objects.filter(article_id=article_id).update(save_count=F('save_count') - 1)
+
     except ObjectDoesNotExist:
         raise NotBookmarkedException()
     except Exception as e:

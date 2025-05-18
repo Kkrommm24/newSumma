@@ -56,8 +56,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
     { key: '2', icon: <FireOutlined />, label: "Đang hot", path: '/trending' },
     { key: '3', icon: <HeartOutlined />, label: "Danh mục yêu thích", path: '/favourite-categories' },
     { key: '4', icon: <BookOutlined />, label: "Bookmark", path: '/bookmark' },
-    { key: '5', icon: <UserOutlined />, label: "Trang cá nhân", path: '/profile' },
-    { key: '6', icon: <BgColorsOutlined />, label: "Chủ đề", path: '/theme' },
+    { key: '5', icon: <UserOutlined />, label: "Trang cá nhân", path: '/profile' }
   ]
 
   const getKeyFromPath = (pathname) => {
@@ -69,7 +68,12 @@ const Sidebar = ({ collapsed, onCollapse }) => {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && historyStatus === 'idle') {
-      dispatch(fetchSearchHistory());
+      dispatch(fetchSearchHistory())
+        .unwrap()
+        .catch((error) => {
+          console.error("Failed to fetch search history:", error);
+          message.error("Không thể tải lịch sử tìm kiếm.");
+        });
     }
   }, [dispatch, authLoading, isAuthenticated, historyStatus]);
 
@@ -123,6 +127,14 @@ const Sidebar = ({ collapsed, onCollapse }) => {
   };
 
   const getHistoryMenuItems = () => {
+    if (loadingHistory) {
+        return [{ key: 'loading', label: <div className="text-center p-3"><Spin size="small" /></div>, disabled: true }];
+    }
+
+    if (!Array.isArray(searchHistory) || searchHistory.length === 0) {
+        return [{ key: 'no-history', label: <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>, disabled: true }];
+    }
+
     const uniqueQueries = new Set();
     const uniqueSearchHistory = searchHistory.filter(item => {
       if (item && item.query && !uniqueQueries.has(item.query.toLowerCase())) {
@@ -131,14 +143,6 @@ const Sidebar = ({ collapsed, onCollapse }) => {
       }
       return false;
     });
-
-    if (loadingHistory) {
-        return [{ key: 'loading', label: <div className="text-center p-3"><Spin size="small" /></div>, disabled: true }];
-    }
-
-    if (uniqueSearchHistory.length === 0 && historyStatus !== 'idle' && historyStatus !== 'loading') {
-        return [{ key: 'no-history', label: <div className="p-3 text-center text-gray-500">Không có lịch sử tìm kiếm.</div>, disabled: true }];
-    }
 
     return uniqueSearchHistory.map((item) => ({
       key: item.id || item.query,

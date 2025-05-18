@@ -16,7 +16,7 @@ const AuthService = {
 
   register: async (username, email, password, password2) => {
     try {
-      const response = await axiosInstance.post('/user/register', {
+      const response = await axiosInstance.post('/user/register/', {
         username,
         email,
         password,
@@ -43,7 +43,7 @@ const AuthService = {
 
   getUserProfile: async () => {
     try {
-        const response = await axiosInstance.get('/user/profile');
+        const response = await axiosInstance.get('/user/profile/');
         return response.data;
     } catch (error) {
         console.error('Get User Profile API error:', error.response || error);
@@ -53,7 +53,7 @@ const AuthService = {
 
   updateUserProfile: async (formData) => {
       try {
-          const response = await axiosInstance.put('/user/profile', formData, {
+          const response = await axiosInstance.put('/user/profile/', formData, {
               headers: {
                   'Content-Type': undefined, 
               }
@@ -67,7 +67,7 @@ const AuthService = {
 
   changePassword: async (data) => {
       try {
-          const response = await axiosInstance.post('/user/change-password', data);
+          const response = await axiosInstance.post('/user/change-password/', data);
           return response.data;
       } catch (error) {
           console.error('Change Password API error:', error.response || error);
@@ -77,7 +77,7 @@ const AuthService = {
 
   deleteAccount: async (password) => {
       try {
-          const response = await axiosInstance.post('/user/delete-account', { password });
+          const response = await axiosInstance.post('/user/delete-account/', { password });
           return response.data;
       } catch (error) {
           console.error('Delete Account API error:', error.response || error);

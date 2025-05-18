@@ -13,7 +13,6 @@ def get_user_preference(user_id) -> UserPreference:
 
         raise
     except Exception as e:
-        logger.error(f"Database error fetching preference for user {user_id}: {e}", exc_info=True)
         raise
     
 def add_favorite_keywords(user_id, keywords_to_add: list[str]) -> UserPreference:
@@ -47,7 +46,6 @@ def add_favorite_keywords(user_id, keywords_to_add: list[str]) -> UserPreference
         return preference
 
     except Exception as e:
-        logger.error(f"Database error adding keywords for user {user_id}: {e}", exc_info=True)
         raise 
 
 def delete_favorite_keywords(user_id, keywords_to_delete: list[str]) -> UserPreference:
@@ -63,7 +61,6 @@ def delete_favorite_keywords(user_id, keywords_to_delete: list[str]) -> UserPref
 
             current_keywords = preference.favorite_keywords or []
             if not isinstance(current_keywords, list):
-                 logger.warning(f"Invalid favorite_keywords format for user {user_id}. Treating as empty.")
                  current_keywords = []
                  preference.favorite_keywords = []
             keywords_to_delete_lower = {kw.lower() for kw in keywords_to_delete}

@@ -5,6 +5,8 @@ import RatingComponent from "./RatingComponent";
 import CommentSection from './CommentSection';
 import axiosInstance from '../services/axiosInstance';
 import { BookOutlined, BookFilled } from '@ant-design/icons';
+import { useDispatch, useSelector } from 'react-redux';
+import { addDownvote, removeDownvote, confirmDownvote } from '../store/slices/userSlice';
 
 const { Meta } = Card;
 const { Text } = Typography;
@@ -41,9 +43,13 @@ const NewsCard = ({
   commentCount: initialCommentCount,
   isBookmarked,
   onBookmarkToggle,
-  showBookmarkButton = true
+  showBookmarkButton = true,
+  onHideArticle,
+  showRating = true,
+  isTogglingBookmark = false,
+  onSuccessfulDownvote
 }) => {
-
+  const dispatch = useDispatch();
   const { message: messageApi } = App.useApp();
   const [isCommentDrawerVisible, setIsCommentDrawerVisible] = useState(false);
   const [displayUpvotes, setDisplayUpvotes] = useState(initialUpvotes || 0);
@@ -53,7 +59,11 @@ const NewsCard = ({
   const [newComment, setNewComment] = useState('');
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  
   const [displayCommentCount, setDisplayCommentCount] = useState(initialCommentCount || 0);
+
+  const pendingDownvotes = useSelector(state => state.user.downvotes.pending);
+  const isPendingDownvote = pendingDownvotes.includes(id);
 
   useEffect(() => {
     setDisplayUpvotes(initialUpvotes || 0);
@@ -66,13 +76,12 @@ const NewsCard = ({
     if (!id) return;
     setIsCommentsLoading(true);
     try {
-      const response = await axiosInstance.get(`/news/summaries/${id}/comments`);
+      const response = await axiosInstance.get(`/news/summaries/${id}/comments/`);
       const fetchedComments = response.data.map(comment => ({
         id: comment.id,
-        author: comment.user ? comment.user.username : 'Người dùng ẩn danh',
         content: comment.content,
-        avatar: comment.user ? comment.user.avatar : undefined,
         created_at: comment.created_at,
+        user: comment.user
       }));
       setComments(fetchedComments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
       setDisplayCommentCount(fetchedComments.length);
@@ -105,7 +114,7 @@ const NewsCard = ({
     setIsSubmittingComment(true);
     try {
       const payload = { content: newComment };
-      const response = await axiosInstance.post(`/news/summaries/${id}/comments`, payload);
+      const response = await axiosInstance.post(`/news/summaries/${id}/comments/`, payload);
       
       if (response.status === 201 && response.data) {
         fetchComments();
@@ -132,6 +141,17 @@ const NewsCard = ({
     }
   };
 
+  const trackSourceClick = async () => {
+    if (!id) return;
+    try {
+      await axiosInstance.post('/recommender/track-source-click/', {
+        summary_id: id
+      });
+    } catch (error) {
+      console.error("Error tracking source click:", error);
+    }
+  };
+
   const handleFeedbackSubmit = async (newVote) => {
     if (!id) {
       messageApi.error("Lỗi: Không tìm thấy ID tóm tắt.");
@@ -145,18 +165,21 @@ const NewsCard = ({
     if (newVote === true) {
       if (previousVote === null) optimisticUpvoteChange = 1;
       else if (previousVote === false) { optimisticUpvoteChange = 1; optimisticDownvoteChange = -1; }
+      dispatch(removeDownvote(id));
     } else if (newVote === false) {
       if (previousVote === null) optimisticDownvoteChange = 1;
       else if (previousVote === true) { optimisticUpvoteChange = -1; optimisticDownvoteChange = 1; }
+      dispatch(addDownvote(id));
     } else {
       if (previousVote === true) optimisticUpvoteChange = -1;
       else if (previousVote === false) optimisticDownvoteChange = -1;
+      dispatch(removeDownvote(id));
     }
     
     const prevState = { 
-        upvotes: displayUpvotes, 
-        downvotes: displayDownvotes, 
-        vote: currentUserVote 
+      upvotes: displayUpvotes, 
+      downvotes: displayDownvotes, 
+      vote: currentUserVote 
     };
 
     setDisplayUpvotes(prev => Math.max(0, prev + optimisticUpvoteChange));
@@ -175,11 +198,19 @@ const NewsCard = ({
         setDisplayUpvotes(response.data.upvotes);
         setDisplayDownvotes(response.data.downvotes);
         setCurrentUserVote(response.data.user_vote === true ? true : response.data.user_vote === false ? false : null);
+        
+        if (newVote === false) {
+          dispatch(confirmDownvote(id));
+          if (onSuccessfulDownvote) {
+            onSuccessfulDownvote(id);
+          }
+        }
       } else {
-         messageApi.error(`Lỗi: ${response?.data?.message || 'Không thể gửi/xóa đánh giá.'}`);
-         setDisplayUpvotes(prevState.upvotes);
-         setDisplayDownvotes(prevState.downvotes);
-         setCurrentUserVote(prevState.vote);
+        messageApi.error(`Lỗi: ${response?.data?.message || 'Không thể gửi/xóa đánh giá.'}`);
+        setDisplayUpvotes(prevState.upvotes);
+        setDisplayDownvotes(prevState.downvotes);
+        setCurrentUserVote(prevState.vote);
+        dispatch(removeDownvote(id));
       }
     } catch (error) { 
       console.error('Error submitting/removing feedback:', error);
@@ -187,6 +218,7 @@ const NewsCard = ({
       setDisplayUpvotes(prevState.upvotes);
       setDisplayDownvotes(prevState.downvotes);
       setCurrentUserVote(prevState.vote);
+      dispatch(removeDownvote(id));
     }
   };
 
@@ -200,10 +232,15 @@ const NewsCard = ({
       <BookmarkIcon 
         key="bookmark" 
         onClick={(e) => { 
+          if (isTogglingBookmark) return;
           e.stopPropagation();
           onBookmarkToggle(articleId, isBookmarked); 
         }} 
-        style={{ color: isBookmarked ? '#111827' : undefined }}
+        style={{ 
+          color: isBookmarked ? '#111827' : undefined, 
+          cursor: isTogglingBookmark ? 'not-allowed' : 'pointer', 
+          opacity: isTogglingBookmark ? 0.5 : 1 
+        }}
       />
     );
   }
@@ -222,7 +259,6 @@ const NewsCard = ({
       </Badge>
     );
   }
-
 
   const shareActionConfig = availableActionsConfig.find(a => a.key === 'share');
   if (shareActionConfig) {
@@ -289,20 +325,27 @@ const NewsCard = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackSourceClick();
+                  }}
                 >
                   Đọc bài gốc
                 </a>
               </div>
             )}
           </div>
-          <div className="flex-shrink-0">
-            <RatingComponent 
-              onSubmitFeedback={handleFeedbackSubmit} 
-              initialVote={currentUserVote}
-              upvotes={displayUpvotes} 
-              downvotes={displayDownvotes} 
-            />
-          </div>
+          {showRating && (
+            <div className="flex-shrink-0">
+              <RatingComponent 
+                onSubmitFeedback={handleFeedbackSubmit} 
+                initialVote={currentUserVote}
+                upvotes={displayUpvotes} 
+                downvotes={displayDownvotes}
+                summaryId={id}
+              />
+            </div>
+          )}
         </div>
       </Card>
 
@@ -325,6 +368,8 @@ const NewsCard = ({
             onNewCommentChange={handleNewCommentChange}
             onSubmitComment={handleSubmitComment}
             isSubmitting={isSubmittingComment}
+            articleIdForComment={articleId}
+            fetchComments={fetchComments}
           />
         )}
       </Drawer>
@@ -333,4 +378,3 @@ const NewsCard = ({
 };
 
 export default NewsCard;
-

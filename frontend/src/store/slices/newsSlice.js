@@ -9,9 +9,12 @@ const getRequestKey = (mode, query) => {
 
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
-  async ({ mode, query, page }, { rejectWithValue }) => {
+  async ({ mode, query, page }, { rejectWithValue, getState }) => {
     let url = '';
     let params = {};
+    const state = getState();
+    const requestKey = getRequestKey(mode, query);
+    const currentState = state.news.requests[requestKey];
 
     try {
       if (query) {
@@ -21,7 +24,7 @@ export const fetchNews = createAsyncThunk(
         url = `/summarizer/summaries/`;
         params = { sort_by: '-created_at', page: page, page_size: NEWS_PER_PAGE };
       } else {
-        const currentOffset = (page - 1) * NEWS_PER_PAGE;
+        const currentOffset = currentState ? currentState.items.length : 0;
         url = `/recommender/recommendations/`;
         params = { limit: NEWS_PER_PAGE, offset: currentOffset };
       }
@@ -29,21 +32,83 @@ export const fetchNews = createAsyncThunk(
       const response = await axiosInstance.get(url, { params });
       const data = response.data;
 
-      if (data && data.results) {
-        const formattedData = data.results.map(item => ({
+      if (data && data.summaries) {
+        const formattedData = data.summaries.map(item => {
+          if (!item.article || !item.article.id) { 
+            console.warn(`[fetchNews - data.summaries] Summary ID ${item.id} has missing or incomplete 'article' object. API Response:`, item);
+            return {
+              id: item.id,
+              articleId: null, 
+              title: item.article?.title || 'Không có tiêu đề',
+              summary: item.summary_text || 'Không có tóm tắt',
+              imageUrl: item.article?.image_url || null,
+              sourceUrl: item.article?.url || '#',
+              keywords: item.article?.keywords || [],
+              publishedAt: item.article?.published_at || null,
+              userVote: item.user_vote,
+              upvotes: item.upvotes || 0,
+              downvotes: item.downvotes || 0,
+              comment_count: item.comment_count === undefined ? 0 : item.comment_count
+            };
+          }
+          return {
             id: item.id,
-            articleId: item.article_id,
-            title: item.title || 'Không có tiêu đề',
-            summary: item.summary_text || item.summary || 'Không có tóm tắt',
-            imageUrl: item.image_url || null,
-            sourceUrl: item.url || '#',
-            keywords: item.keywords || [],
-            publishedAt: item.published_at || null,
-            userVote: item.user_vote === true ? true : item.user_vote === false ? false : null,
-            upvotes: item.upvotes,
-            downvotes: item.downvotes,
+            articleId: item.article.id,
+            title: item.article.title || 'Không có tiêu đề',
+            summary: item.summary_text || 'Không có tóm tắt',
+            imageUrl: item.article.image_url || null,
+            sourceUrl: item.article.url || '#',
+            keywords: item.article.keywords || [],
+            publishedAt: item.article.published_at || null,
+            userVote: item.user_vote,
+            upvotes: item.upvotes || 0,
+            downvotes: item.downvotes || 0,
             comment_count: item.comment_count === undefined ? 0 : item.comment_count
-        }));
+          };
+        });
+        
+        return { 
+          items: formattedData, 
+          totalCount: data.source?.total_count || formattedData.length,
+          hasMore: data.source?.has_more || false,
+          page: page, 
+          mode: mode, 
+          query: query 
+        };
+      } else if (data && data.results) {
+        const formattedData = data.results.map(item => {
+            if (!item.article || !item.article.id) {
+                console.warn(`[fetchNews - data.results] Summary ID ${item.id} has missing or incomplete 'article' object. API Response:`, item);
+                return {
+                    id: item.id,
+                    articleId: null,
+                    title: item.article?.title || 'Không có tiêu đề',
+                    summary: item.summary_text || item.summary || 'Không có tóm tắt',
+                    imageUrl: item.article?.image_url || null,
+                    sourceUrl: item.article?.url || '#',
+                    keywords: item.article?.keywords || [],
+                    publishedAt: item.article?.published_at || null,
+                    userVote: item.user_vote,
+                    upvotes: item.upvotes || 0,
+                    downvotes: item.downvotes || 0,
+                    comment_count: item.comment_count === undefined ? 0 : item.comment_count
+                };
+            }
+            return {
+                id: item.id,
+                articleId: item.article.id,
+                title: item.article.title || 'Không có tiêu đề',
+                summary: item.summary_text || item.summary || 'Không có tóm tắt',
+                imageUrl: item.article.image_url || null,
+                sourceUrl: item.article.url || '#',
+                keywords: item.article.keywords || [],
+                publishedAt: item.article.published_at || null,
+                userVote: item.user_vote,
+                upvotes: item.upvotes || 0,
+                downvotes: item.downvotes || 0,
+                comment_count: item.comment_count === undefined ? 0 : item.comment_count
+            };
+        });
         
         const totalCount = data.count || 0;
         const receivedItemsCount = data.results.length;
@@ -70,8 +135,24 @@ export const fetchNews = createAsyncThunk(
   }
 );
 
+export const submitFeedback = createAsyncThunk(
+  'news/submitFeedback',
+  async ({ summaryId, isUpvote }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post('/summarizer/summaries/feedback/', {
+        summary_id: summaryId,
+        is_upvote: isUpvote
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to submit feedback');
+    }
+  }
+);
+
 const initialState = {
   requests: {},
+  userVotes: JSON.parse(localStorage.getItem('userVotes')) || {},
 };
 
 const newsSlice = createSlice({
@@ -85,6 +166,10 @@ const newsSlice = createSlice({
     },
     resetAllNews: (state) => {
         state.requests = {};
+    },
+    syncUserVotes: (state, action) => {
+        state.userVotes = action.payload;
+        localStorage.setItem('userVotes', JSON.stringify(action.payload));
     }
   },
   extraReducers: (builder) => {
@@ -114,7 +199,7 @@ const newsSlice = createSlice({
             }
             requestState.totalCount = totalCount;
             requestState.hasMore = hasMore;
-            requestState.currentPage = page + 1;
+            requestState.currentPage = page;
             requestState.error = null;
         }
       })
@@ -128,10 +213,33 @@ const newsSlice = createSlice({
               state.requests[requestKey].hasMore = false; 
           }
         }
+      })
+      .addCase(submitFeedback.fulfilled, (state, action) => {
+        const { summary_id, upvotes, downvotes, user_vote } = action.payload;
+        
+        if (user_vote === null) {
+          delete state.userVotes[summary_id];
+        } else {
+          state.userVotes[summary_id] = user_vote;
+        }
+        
+        localStorage.setItem('userVotes', JSON.stringify(state.userVotes));
+        
+        Object.values(state.requests).forEach(requestState => {
+          const item = requestState.items.find(item => item.id === summary_id);
+          if (item) {
+            item.upvotes = upvotes;
+            item.downvotes = downvotes;
+            item.userVote = user_vote;
+          }
+        });
+      })
+      .addCase(submitFeedback.rejected, (state, action) => {
+        console.error('Feedback submission failed:', action.payload);
       });
   },
 });
 
-export const { resetNewsState, resetAllNews } = newsSlice.actions;
+export const { resetNewsState, resetAllNews, syncUserVotes } = newsSlice.actions;
 
 export default newsSlice.reducer; 
