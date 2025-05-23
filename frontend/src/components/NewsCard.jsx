@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Drawer, Typography, App, Spin, Badge } from 'antd';
+import { Card, Drawer, Typography, App, Spin, Badge, Dropdown, Menu } from 'antd';
 import { simpleActionIconsConfig } from "./InteractiveButtons";
 import RatingComponent from "./RatingComponent";
 import CommentSection from './CommentSection';
 import axiosInstance from '../services/axiosInstance';
-import { BookOutlined, BookFilled } from '@ant-design/icons';
+import { BookOutlined, BookFilled, FacebookOutlined, TwitterOutlined, LinkOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { addDownvote, removeDownvote, confirmDownvote } from '../store/slices/userSlice';
 
@@ -222,6 +222,46 @@ const NewsCard = ({
     }
   };
 
+  const handleShare = (type) => {
+    if (!sourceUrl) {
+      messageApi.error('Không có link bài viết để chia sẻ');
+      return;
+    }
+
+    const shareUrl = encodeURIComponent(sourceUrl);
+    const shareTitle = encodeURIComponent(title);
+
+    switch (type) {
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, '_blank');
+        break;
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`, '_blank');
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(sourceUrl)
+          .then(() => messageApi.success('Đã sao chép link bài viết'))
+          .catch(() => messageApi.error('Không thể sao chép link'));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const shareMenu = (
+    <Menu>
+      <Menu.Item key="facebook" icon={<FacebookOutlined />} onClick={() => handleShare('facebook')}>
+        Chia sẻ lên Facebook
+      </Menu.Item>
+      <Menu.Item key="twitter" icon={<TwitterOutlined />} onClick={() => handleShare('twitter')}>
+        Chia sẻ lên Twitter
+      </Menu.Item>
+      <Menu.Item key="copy" icon={<LinkOutlined />} onClick={() => handleShare('copy')}>
+        Sao chép link
+      </Menu.Item>
+    </Menu>
+  );
+
   const availableActionsConfig = [...simpleActionIconsConfig];
 
   const cardActions = [];
@@ -255,6 +295,13 @@ const NewsCard = ({
             e.stopPropagation();
             showCommentDrawer();
           }} 
+          style={{ 
+            color: '#6b7280',
+            transition: 'color 0.2s',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#1f2937'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
         />
       </Badge>
     );
@@ -263,13 +310,13 @@ const NewsCard = ({
   const shareActionConfig = availableActionsConfig.find(a => a.key === 'share');
   if (shareActionConfig) {
     cardActions.push(
+      <Dropdown overlay={shareMenu} trigger={['click']} key="share">
       <shareActionConfig.IconComponent 
-        key="share" 
         onClick={(e) => {
           e.stopPropagation();
-          // Thêm logic share nếu cần
         }} 
       />
+      </Dropdown>
     );
   }
 

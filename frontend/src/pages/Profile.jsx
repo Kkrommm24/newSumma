@@ -118,7 +118,22 @@ function Profile() {
             passwordForm.resetFields();
         } catch (error) {
             console.error("Failed to change password (raw error):", error);
-            const errorMsg = getErrorMessage(error);
+            let errorMsg = 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+            
+            if (error.response?.data) {
+                if (error.response.data.detail) {
+                    errorMsg = error.response.data.detail;
+                } else if (error.response.data.old_password) {
+                    const oldPasswordError = error.response.data.old_password;
+                    errorMsg = Array.isArray(oldPasswordError) ? oldPasswordError[0].replace(/[\[\]']/g, '') : oldPasswordError;
+                } else if (error.response.data.new_password) {
+                    const newPasswordError = error.response.data.new_password;
+                    errorMsg = Array.isArray(newPasswordError) ? newPasswordError[0].replace(/[\[\]']/g, '') : newPasswordError;
+                } else if (typeof error.response.data === 'string') {
+                    errorMsg = error.response.data;
+                }
+            }
+            
             messageApi.error(errorMsg);
         } finally {
             setChangingPassword(false);
@@ -240,18 +255,22 @@ function Profile() {
                             type="primary" 
                             htmlType="submit" 
                             loading={updating}
-                            style={{ backgroundColor: 'black', color: 'white', borderColor: 'black' }}
+                            style={{ backgroundColor: '#252525', color: 'white', borderColor: '#252525' }}
                         >
                             Cập nhật thông tin
                         </Button>
-                        <Button onClick={() => setChangePasswordModalVisible(true)}>
+                        <Button 
+                            onClick={() => setChangePasswordModalVisible(true)}
+                            style={{ color: '#252525', borderColor: '#252525' }}
+                        >
                             Đổi mật khẩu
                         </Button>
                         <Button 
-                            type="danger"
+                            type="primary"
+                            danger
                             onClick={showDeleteConfirm} 
                             loading={deleting}
-                            style={{ backgroundColor: 'red', color: 'white', borderColor: 'red' }}
+                            style={{ backgroundColor: '#ff4d4f', color: 'white', borderColor: '#ff4d4f' }}
                         >
                             Xóa tài khoản
                         </Button>
@@ -304,7 +323,12 @@ function Profile() {
                         <Input.Password prefix={<LockOutlined />} placeholder="Xác nhận mật khẩu mới" />
                     </Form.Item>
                     <Form.Item>
-                        <Button type="primary" htmlType="submit" loading={changingPassword}>
+                        <Button 
+                            type="primary" 
+                            htmlType="submit" 
+                            loading={changingPassword}
+                            style={{ backgroundColor: '#252525', color: 'white', borderColor: '#252525' }}
+                        >
                             Xác nhận đổi mật khẩu
                         </Button>
                     </Form.Item>

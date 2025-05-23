@@ -274,7 +274,11 @@ const Sidebar = ({ collapsed, onCollapse }) => {
               danger
               icon={<LogoutOutlined />}
               className="w-full flex items-center justify-center"
-              style={{marginTop: '80px', marginLeft: '15px'}}
+              style={{
+                marginTop: '80px', 
+                marginLeft: '15px',
+                boxShadow: 'none'
+              }}
               onClick={handleLogout}
             >
               {!collapsed && "Logout"}
