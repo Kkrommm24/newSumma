@@ -174,8 +174,7 @@ class RequestPasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
-            raise serializers.ValidationError(_("Không tìm thấy người dùng với địa chỉ email này."))
+        # Không validate email tồn tại để tránh tiết lộ thông tin
         return value
 
 class SetNewPasswordSerializer(serializers.Serializer):

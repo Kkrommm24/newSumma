@@ -15,11 +15,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           fontFamily: '"Be Vietnam Pro", sans-serif',
           colorPrimary: '#101720',
         },
+        components: {
+          Message: {
+            zIndexPopup: 1000,
+          },
+        },
       }}
     >
       <Provider store={store}>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AntApp>
+          <AntApp message={{ maxCount: 3 }}>
           <App />
         </AntApp>
         </BrowserRouter>

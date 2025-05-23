@@ -44,7 +44,7 @@ const ForgotPasswordPage = () => {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await axiosInstance.post('/user/request-password-reset', {
+      const response = await axiosInstance.post('/user/request-password-reset/', {
         email: values.email,
       });
       setSuccessMessage(response.data?.message || 'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu.');

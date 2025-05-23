@@ -41,10 +41,27 @@ const ResetPasswordPage = () => {
       }, 3000); 
 
     } catch (err) {
-      const defaultErrorMessage = 'Đặt lại mật khẩu thất bại. Liên kết có thể đã hết hạn hoặc không hợp lệ.';
-      const backendError = err.response?.data?.error || err.response?.data?.password2?.[0];
-      setError(backendError || defaultErrorMessage);
       console.error("Reset password confirmation failed:", err.response || err);
+      let errorMessage = 'Đặt lại mật khẩu thất bại. Liên kết có thể đã hết hạn hoặc không hợp lệ.';
+      
+      if (err.response?.data) {
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+        else if (err.response.data.password) {
+          const passwordErrors = err.response.data.password;
+          errorMessage = Array.isArray(passwordErrors) ? passwordErrors[0] : passwordErrors;
+        }
+        else if (err.response.data.password2) {
+          const password2Errors = err.response.data.password2;
+          errorMessage = Array.isArray(password2Errors) ? password2Errors[0] : password2Errors;
+        }
+        else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

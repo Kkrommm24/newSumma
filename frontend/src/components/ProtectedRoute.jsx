@@ -4,9 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Spin } from 'antd';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, authLoading } = useAuth();
+  const { isAuthenticated, authLoading, user } = useAuth();
   const location = useLocation();
-
 
   if (authLoading) {
     return (
@@ -18,6 +17,15 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Kiểm tra quyền admin cho route /admin
+  if (location.pathname === '/admin') {
+    console.log('Checking admin access:', { user, isStaff: user?.is_staff });
+    if (!user?.is_staff) {
+      console.log('User is not admin, redirecting to home');
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children;

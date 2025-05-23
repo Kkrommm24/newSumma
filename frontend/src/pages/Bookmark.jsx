@@ -330,7 +330,17 @@ function Bookmark() {
       <Card>
         <Spin spinning={isLoading} tip="Đang tải danh sách bookmark..." size="large">
           {!isLoading && displayError && (
-            <Alert message="Lỗi" description={typeof displayError === 'string' ? displayError : 'Không thể tải bookmark.'} type="error" showIcon />
+            <Alert 
+                message="Lỗi" 
+                description={typeof displayError === 'string' ? displayError : 'Không thể tải bookmark.'} 
+                type="error" 
+                showIcon 
+                style={{ 
+                  backgroundColor: '#fff2f0',
+                  borderColor: '#ffccc7',
+                  color: '#ff4d4f'
+                }}
+            />
           )}
           {!isLoading && !displayError && filteredBookmarks.length === 0 && (
             searchTerm || filterCategory || filterDateRange[0] ? ( 
@@ -355,6 +365,7 @@ function Bookmark() {
                                 type="text" 
                                 danger 
                                 onClick={() => showDeleteConfirm(article.id, article.title)}
+                                style={{ color: '#ff4d4f' }}
                             />
                         ]}
                     >

@@ -29,6 +29,11 @@ const LoginPage = () => {
         const loginSuccess = await login(loginData.access, loginData.refresh, loginData.user);
 
         if (loginSuccess) {
+          if (loginData.user.is_staff) {
+            navigate('/admin', { replace: true });
+            return;
+          }
+
           setCheckingPrefs(true);
           try {
             const prefsResponse = await axiosInstance.get('/user/fav-words/');
@@ -80,15 +85,15 @@ const LoginPage = () => {
             <ConfigProvider
               theme={{
                 token: {
-                  colorPrimary: '#1f2937',
+                  colorPrimary: '#252525',
                 },
                 components: {
                   Checkbox: {
-                    colorPrimary: '#1f2937',
+                    colorPrimary: '#252525',
                     colorPrimaryHover: '#111827',
                   },
                   Input: {
-                    colorPrimary: '#1f2937',
+                    colorPrimary: '#252525',
                     colorPrimaryHover: '#111827'
                   },
                   Button: {
@@ -96,6 +101,11 @@ const LoginPage = () => {
                     colorPrimaryHover: '#374151',
                     colorPrimaryActive: '#111827',
                     colorPrimaryBorder: '#252525',
+                  },
+                  Alert: {
+                    colorError: '#ff4d4f',
+                    colorErrorBg: '#fff2f0',
+                    colorErrorBorder: '#ffccc7'
                   }
                 }
               }}

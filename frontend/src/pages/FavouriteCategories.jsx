@@ -106,17 +106,22 @@ function FavouriteCategories() {
         <ConfigProvider
             theme={{
              token: {
-               colorPrimary: '#1f2937',
+               colorPrimary: '#252525',
              },
              components: {
                Button: {
-                 colorPrimary: '#1f2937',
-                 colorPrimaryHover: '#111827',
-                 colorPrimaryActive: '#000000',
+                 colorPrimary: '#252525',
+                 colorPrimaryHover: '#374151',
+                 colorPrimaryActive: '#111827',
                },
                Input: {
-                  colorPrimary: '#1f2937',
+                  colorPrimary: '#252525',
                   colorPrimaryHover: '#111827',
+               },
+               Alert: {
+                 colorError: '#ff4d4f',
+                 colorErrorBg: '#fff2f0',
+                 colorErrorBorder: '#ffccc7'
                }
              }
            }}
@@ -136,7 +141,12 @@ function FavouriteCategories() {
                 description={ typeof displayError === 'string' ? displayError : 'Đã có lỗi xảy ra.'} 
                 type="error" 
                 showIcon 
-                style={{ marginBottom: '16px' }} 
+                style={{ 
+                  marginBottom: '16px',
+                  backgroundColor: '#fff2f0',
+                  borderColor: '#ffccc7',
+                  color: '#ff4d4f'
+                }} 
               />
             )}
 
