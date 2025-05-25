@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from news.models import Category
 
+
 class Command(BaseCommand):
     help = 'Seed predefined categories into the database'
 
@@ -39,6 +40,8 @@ class Command(BaseCommand):
 
                 for slug, name in CATEGORY_DATA.items():
                     Category.objects.create(name=name)
-                    self.stdout.write(self.style.SUCCESS(f"✔ Đã tạo Category: {name}"))
+                    self.stdout.write(
+                        self.style.SUCCESS(f"✔ Đã tạo Category: {name}"))
         except Exception as e:
-            self.stderr.write(self.style.ERROR(f"❌ Lỗi khi seed categories: {str(e)}"))
+            self.stderr.write(self.style.ERROR(
+                f"❌ Lỗi khi seed categories: {str(e)}"))

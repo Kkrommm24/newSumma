@@ -3,6 +3,7 @@ from news.models import NewsArticle, NewsSummary
 from news.serializers.serializers import SummarySerializer
 from news.services import summary_service
 
+
 class SummaryDetailView(generics.RetrieveAPIView):
     serializer_class = SummarySerializer
     permission_classes = [permissions.AllowAny]
@@ -22,9 +23,10 @@ class SummaryDetailView(generics.RetrieveAPIView):
                 article = NewsArticle.objects.get(id=summary.article_id)
                 context['articles'] = {str(summary.article_id): article}
             except NewsArticle.DoesNotExist:
-                 context['articles'] = {}
+                context['articles'] = {}
         context['request'] = self.request
         return context
+
 
 class ArticleSummaryView(generics.RetrieveAPIView):
     serializer_class = SummarySerializer
@@ -34,7 +36,8 @@ class ArticleSummaryView(generics.RetrieveAPIView):
 
     def get_object(self):
         article_id = self.kwargs.get(self.lookup_field)
-        summary, article = summary_service.get_latest_summary_by_article_id(article_id)
+        summary, article = summary_service.get_latest_summary_by_article_id(
+            article_id)
         self.article = article
         return summary
 
@@ -42,8 +45,8 @@ class ArticleSummaryView(generics.RetrieveAPIView):
         context = super().get_serializer_context()
         article = getattr(self, 'article', None)
         if article:
-             context['articles'] = {str(article.id): article}
+            context['articles'] = {str(article.id): article}
         else:
-             context['articles'] = {}
+            context['articles'] = {}
         context['request'] = self.request
-        return context 
+        return context

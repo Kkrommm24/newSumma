@@ -4,7 +4,10 @@ from django.db import transaction
 from news.models import User
 
 # Consider loading sensitive data like passwords from environment variables
-DEFAULT_PASSWORD = os.environ.get("SEED_USER_DEFAULT_PASSWORD", "password123") # Default if not set
+DEFAULT_PASSWORD = os.environ.get(
+    "SEED_USER_DEFAULT_PASSWORD",
+    "password123")  # Default if not set
+
 
 class Command(BaseCommand):
     help = 'Seed predefined users into the database'
@@ -47,10 +50,11 @@ class Command(BaseCommand):
                     is_staff = user_data.get('is_staff', False)
                     is_superuser = user_data.get('is_superuser', False)
 
-
-                    if not User.objects.filter(username=username).exists() and not User.objects.filter(email=email).exists():
+                    if not User.objects.filter(
+                            username=username).exists() and not User.objects.filter(
+                            email=email).exists():
                         if is_superuser:
-                             User.objects.create_superuser(
+                            User.objects.create_superuser(
                                 username=username,
                                 email=email,
                                 password=password,
@@ -62,15 +66,20 @@ class Command(BaseCommand):
                                 password=password,
                                 is_staff=is_staff
                             )
-                        self.stdout.write(self.style.SUCCESS(f"✔ Đã tạo User: {username}"))
+                        self.stdout.write(
+                            self.style.SUCCESS(f"✔ Đã tạo User: {username}"))
                         created_count += 1
                     else:
-                         self.stdout.write(self.style.WARNING(f"ℹ️ User {username} hoặc email {email} đã tồn tại, bỏ qua."))
+                        self.stdout.write(self.style.WARNING(
+                            f"ℹ️ User {username} hoặc email {email} đã tồn tại, bỏ qua."))
 
                 if created_count > 0:
-                     self.stdout.write(self.style.SUCCESS(f"✅ Đã tạo thành công {created_count} user mới."))
+                    self.stdout.write(
+                        self.style.SUCCESS(f"✅ Đã tạo thành công {created_count} user mới."))
                 else:
-                     self.stdout.write(self.style.WARNING("Không có user mới nào được tạo."))
+                    self.stdout.write(
+                        self.style.WARNING("Không có user mới nào được tạo."))
 
         except Exception as e:
-            self.stderr.write(self.style.ERROR(f"❌ Lỗi khi seed users: {str(e)}")) 
+            self.stderr.write(self.style.ERROR(
+                f"❌ Lỗi khi seed users: {str(e)}"))

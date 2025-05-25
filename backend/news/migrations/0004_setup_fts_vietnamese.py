@@ -2,12 +2,13 @@
 
 from django.db import migrations
 
+
 class Migration(migrations.Migration):
 
-    # Thêm dependencies nếu cần, ví dụ: phụ thuộc vào migration tạo bảng NewsSummary
+    # Thêm dependencies nếu cần, ví dụ: phụ thuộc vào migration tạo bảng
+    # NewsSummary
     dependencies = [
-        ('news', '0003_alter_newssummary_options_newssummary_search_vector_and_more'),
-    ]
+        ('news', '0003_alter_newssummary_options_newssummary_search_vector_and_more'), ]
 
     operations = [
         migrations.RunSQL(

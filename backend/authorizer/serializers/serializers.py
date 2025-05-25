@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
 
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         try:
@@ -22,7 +23,14 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return data
 
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'avatar', 'is_staff', 'is_superuser')
+        fields = (
+            'id',
+            'username',
+            'email',
+            'avatar',
+            'is_staff',
+            'is_superuser')

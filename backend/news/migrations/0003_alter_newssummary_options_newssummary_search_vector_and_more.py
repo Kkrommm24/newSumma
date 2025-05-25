@@ -14,15 +14,21 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='newssummary',
-            options={'ordering': ['-created_at']},
+            options={
+                'ordering': ['-created_at']},
         ),
         migrations.AddField(
             model_name='newssummary',
             name='search_vector',
-            field=django.contrib.postgres.search.SearchVectorField(blank=True, editable=False, null=True),
+            field=django.contrib.postgres.search.SearchVectorField(
+                blank=True,
+                editable=False,
+                null=True),
         ),
         migrations.AddIndex(
             model_name='newssummary',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['search_vector'], name='news_newssu_search__48e9a4_gin'),
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=['search_vector'],
+                name='news_newssu_search__48e9a4_gin'),
         ),
     ]

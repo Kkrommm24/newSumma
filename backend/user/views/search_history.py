@@ -8,6 +8,7 @@ from user.services.search_history_service import get_user_search_history, add_us
 
 logger = logging.getLogger(__name__)
 
+
 class UserSearchHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -29,7 +30,7 @@ class UserSearchHistoryView(APIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        
+
         serializer = AddSearchHistorySerializer(data=request.data)
         if serializer.is_valid():
             query = serializer.validated_data['query']
@@ -67,14 +68,15 @@ class UserSearchHistoryView(APIView):
             queries = input_serializer.validated_data['queries']
             try:
                 deleted_count = delete_search_histories(user.id, queries)
-                
+
                 if deleted_count > 0:
                     remaining_histories = get_user_search_history(user.id)
-                    serializer = UserSearchHistorySerializer(remaining_histories, many=True)
+                    serializer = UserSearchHistorySerializer(
+                        remaining_histories, many=True)
                     return Response({
                         "items": serializer.data,
                         "status": "success"
-                    }, status=status.HTTP_200_OK) 
+                    }, status=status.HTTP_200_OK)
                 else:
                     return Response({
                         "error": "No matching search history entries found to delete.",

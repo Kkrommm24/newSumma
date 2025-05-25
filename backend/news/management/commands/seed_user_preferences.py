@@ -17,6 +17,7 @@ SAMPLE_KEYWORDS = [
     "văn hóa", "nghệ thuật", "âm nhạc", "phim ảnh",
 ]
 
+
 class Command(BaseCommand):
     help = 'Seed UserPreferences with favorite keywords for existing users'
 
@@ -26,7 +27,7 @@ class Command(BaseCommand):
             "hunghdg215062": ["bóng đá", "chuyển nhượng", "thể thao", "kinh tế vĩ mô", "U17"],
             # "admin": [], # Example: Admin has no specific keywords initially
         }
-        
+
         for i in range(2, 19):
             username = f"testuser{i}"
             num_keywords = random.randint(3, 5)
@@ -53,23 +54,31 @@ class Command(BaseCommand):
                         )
 
                         if created:
-                            self.stdout.write(self.style.SUCCESS(f"✔ Đã tạo Preference cho user: {username} với keywords: {keywords}"))
+                            self.stdout.write(self.style.SUCCESS(
+                                f"✔ Đã tạo Preference cho user: {username} với keywords: {keywords}"))
                             created_count += 1
                         else:
-                            self.stdout.write(self.style.WARNING(f"ℹ️ Đã cập nhật Preference cho user: {username} với keywords: {keywords}"))
+                            self.stdout.write(self.style.WARNING(
+                                f"ℹ️ Đã cập nhật Preference cho user: {username} với keywords: {keywords}"))
                             updated_count += 1
 
                     except User.DoesNotExist:
-                        self.stderr.write(self.style.ERROR(f"❌ User '{username}' không tồn tại. Bỏ qua seeding preference."))
+                        self.stderr.write(self.style.ERROR(
+                            f"❌ User '{username}' không tồn tại. Bỏ qua seeding preference."))
                     except Exception as e:
-                        self.stderr.write(self.style.ERROR(f"❌ Lỗi khi seeding preference cho user '{username}': {str(e)}"))
+                        self.stderr.write(self.style.ERROR(
+                            f"❌ Lỗi khi seeding preference cho user '{username}': {str(e)}"))
 
         except Exception as e:
-            self.stderr.write(self.style.ERROR(f"❌ Lỗi transaction khi seeding preferences: {str(e)}"))
+            self.stderr.write(self.style.ERROR(
+                f"❌ Lỗi transaction khi seeding preferences: {str(e)}"))
 
         if created_count > 0:
-            self.stdout.write(self.style.SUCCESS(f"✅ Đã tạo thành công {created_count} UserPreference mới."))
+            self.stdout.write(self.style.SUCCESS(
+                f"✅ Đã tạo thành công {created_count} UserPreference mới."))
         if updated_count > 0:
-             self.stdout.write(self.style.SUCCESS(f"✅ Đã cập nhật thành công {updated_count} UserPreference."))
+            self.stdout.write(self.style.SUCCESS(
+                f"✅ Đã cập nhật thành công {updated_count} UserPreference."))
         if created_count == 0 and updated_count == 0:
-             self.stdout.write(self.style.WARNING("Không có UserPreference nào được tạo hoặc cập nhật."))
+            self.stdout.write(self.style.WARNING(
+                "Không có UserPreference nào được tạo hoặc cập nhật."))

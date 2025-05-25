@@ -6,6 +6,8 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 
 # Custom User Manager
+
+
 class UserManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
         if not username:
@@ -31,6 +33,7 @@ class UserManager(BaseUserManager):
 
         return self.create_user(username, email, password, **extra_fields)
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=255, unique=True)
@@ -40,7 +43,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     objects = UserManager()
 
     USERNAME_FIELD = 'username'
@@ -48,6 +51,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
 
 class NewsSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -57,11 +61,13 @@ class NewsSource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class Category(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
 class NewsArticle(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -74,6 +80,7 @@ class NewsArticle(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class NewsArticleCategory(models.Model):
     article_id = models.UUIDField()
     category_id = models.UUIDField()
@@ -83,6 +90,7 @@ class NewsArticleCategory(models.Model):
     class Meta:
         unique_together = ('article_id', 'category_id')
 
+
 class NewsSummary(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     article_id = models.UUIDField()
@@ -91,7 +99,7 @@ class NewsSummary(models.Model):
     downvotes = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     search_vector = SearchVectorField(null=True, blank=True, editable=False)
 
     class Meta:
@@ -103,6 +111,7 @@ class NewsSummary(models.Model):
     def __str__(self):
         return f"Summary ({self.id}): {self.summary_text[:60]}..."
 
+
 class UserSavedArticle(models.Model):
     user_id = models.UUIDField()
     article_id = models.UUIDField()
@@ -112,11 +121,13 @@ class UserSavedArticle(models.Model):
     class Meta:
         unique_together = ('user_id', 'article_id')
 
+
 class UserPreference(models.Model):
     user_id = models.UUIDField(primary_key=True)
     favorite_keywords = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
 class SummaryFeedback(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -126,6 +137,7 @@ class SummaryFeedback(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class SearchHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField()
@@ -134,6 +146,7 @@ class SearchHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
 class Comment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField()
@@ -141,6 +154,7 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
 class ArticleStats(models.Model):
     article_id = models.UUIDField(primary_key=True)

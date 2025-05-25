@@ -2,6 +2,7 @@ from rest_framework.generics import ListAPIView
 from news.models import NewsArticle
 from news.serializers.serializers import ArticleListSerializer
 
+
 class ArticleListView(ListAPIView):
     serializer_class = ArticleListSerializer
 
