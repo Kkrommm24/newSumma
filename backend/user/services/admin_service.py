@@ -1,5 +1,5 @@
 from news.models import User, NewsArticle, NewsSummary, NewsSource, ArticleStats, Comment, UserPreference
-from django.db.models import Count, Sum
+from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
 
@@ -47,9 +47,32 @@ class AdminService:
             
         return stats
     
-    def get_all_users(self):
+    def get_all_users(self, filters=None, ordering=None):
         """Lấy danh sách tất cả người dùng"""
-        return User.objects.all().order_by('-created_at')
+        queryset = User.objects.all()
+        
+        if filters:
+            if 'username' in filters:
+                queryset = queryset.filter(username__in=filters['username'])
+            if 'email' in filters:
+                queryset = queryset.filter(email__in=filters['email'])
+            if 'is_active' in filters:
+                queryset = queryset.filter(is_active__in=filters['is_active'])
+        
+        # Áp dụng sắp xếp nếu có
+        if ordering:
+            # Kiểm tra xem trường sắp xếp có hợp lệ không
+            valid_fields = ['username', 'email', 'is_active', 'created_at', 'updated_at']
+            field = ordering.lstrip('-')
+            if field in valid_fields:
+                queryset = queryset.order_by(ordering)
+            else:
+                # Nếu trường không hợp lệ, sắp xếp mặc định theo created_at
+                queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        return queryset
     
     def get_users_by_keyword(self, keyword):
         """Lấy danh sách người dùng theo từ khóa yêu thích"""
@@ -75,13 +98,65 @@ class AdminService:
         except User.DoesNotExist:
             return None
     
-    def get_all_articles(self):
+    def get_all_articles(self, filters=None, ordering=None):
         """Lấy danh sách tất cả bài viết"""
-        return NewsArticle.objects.all().order_by('-created_at')
+        queryset = NewsArticle.objects.all()
+        
+        if filters:
+            if 'title' in filters:
+                queryset = queryset.filter(title__in=filters['title'])
+            if 'source_name' in filters:
+                source_ids = NewsSource.objects.filter(name__in=filters['source_name']).values_list('id', flat=True)
+                queryset = queryset.filter(source_id__in=source_ids)
+        
+        # Áp dụng sắp xếp nếu có
+        if ordering:
+            valid_fields = ['title', 'source_id', 'published_at', 'created_at', 'updated_at']
+            field = ordering.lstrip('-')
+            if field == 'source_name':
+                # Xử lý sắp xếp theo tên nguồn
+                source_ids = NewsSource.objects.values_list('id', 'name')
+                source_dict = dict(source_ids)
+                queryset = list(queryset)
+                reverse = ordering.startswith('-')
+                queryset.sort(key=lambda x: source_dict.get(x.source_id, ''), reverse=reverse)
+            elif field in valid_fields:
+                queryset = queryset.order_by(ordering)
+            else:
+                queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        return queryset
     
-    def get_all_summaries(self):
+    def get_all_summaries(self, filters=None, ordering=None):
         """Lấy danh sách tất cả tóm tắt"""
-        return NewsSummary.objects.all().order_by('-created_at')
+        queryset = NewsSummary.objects.all()
+        
+        if filters:
+            if 'article_title' in filters:
+                article_ids = NewsArticle.objects.filter(title__in=filters['article_title']).values_list('id', flat=True)
+                queryset = queryset.filter(article_id__in=article_ids)
+        
+        # Áp dụng sắp xếp nếu có
+        if ordering:
+            valid_fields = ['upvotes', 'downvotes', 'created_at', 'updated_at']
+            field = ordering.lstrip('-')
+            if field == 'article_title':
+                # Xử lý sắp xếp theo tiêu đề bài viết
+                article_ids = NewsArticle.objects.values_list('id', 'title')
+                article_dict = dict(article_ids)
+                queryset = list(queryset)
+                reverse = ordering.startswith('-')
+                queryset.sort(key=lambda x: article_dict.get(x.article_id, ''), reverse=reverse)
+            elif field in valid_fields:
+                queryset = queryset.order_by(ordering)
+            else:
+                queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        return queryset
     
     def delete_article(self, article_id):
         """Xóa bài viết"""
@@ -101,9 +176,44 @@ class AdminService:
         except NewsSummary.DoesNotExist:
             return False
     
-    def get_all_comments(self):
+    def get_all_comments(self, filters=None, ordering=None):
         """Lấy danh sách tất cả bình luận"""
-        return Comment.objects.all().order_by('-created_at')
+        queryset = Comment.objects.all()
+        
+        if filters:
+            if 'username' in filters:
+                user_ids = User.objects.filter(username__in=filters['username']).values_list('id', flat=True)
+                queryset = queryset.filter(user_id__in=user_ids)
+            if 'article_title' in filters:
+                article_ids = NewsArticle.objects.filter(title__in=filters['article_title']).values_list('id', flat=True)
+                queryset = queryset.filter(article_id__in=article_ids)
+        
+        # Áp dụng sắp xếp nếu có
+        if ordering:
+            valid_fields = ['created_at', 'updated_at']
+            field = ordering.lstrip('-')
+            if field == 'username':
+                # Xử lý sắp xếp theo username
+                user_ids = User.objects.values_list('id', 'username')
+                user_dict = dict(user_ids)
+                queryset = list(queryset)
+                reverse = ordering.startswith('-')
+                queryset.sort(key=lambda x: user_dict.get(x.user_id, ''), reverse=reverse)
+            elif field == 'article_title':
+                # Xử lý sắp xếp theo tiêu đề bài viết
+                article_ids = NewsArticle.objects.values_list('id', 'title')
+                article_dict = dict(article_ids)
+                queryset = list(queryset)
+                reverse = ordering.startswith('-')
+                queryset.sort(key=lambda x: article_dict.get(x.article_id, ''), reverse=reverse)
+            elif field in valid_fields:
+                queryset = queryset.order_by(ordering)
+            else:
+                queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        return queryset
     
     def delete_comment(self, comment_id):
         """Xóa bình luận"""
@@ -114,7 +224,7 @@ class AdminService:
         except Comment.DoesNotExist:
             return False
     
-    def get_all_favorite_words(self):
+    def get_all_favorite_words(self, filters=None, ordering=None):
         """Lấy danh sách từ khóa yêu thích và số người dùng"""
         # Lấy tất cả các từ khóa yêu thích từ tất cả người dùng
         all_keywords = []
@@ -132,7 +242,23 @@ class AdminService:
             for keyword, count in keyword_counts.items()
         ]
         
-        return sorted(favorite_words, key=lambda x: x['user_count'], reverse=True)
+        # Áp dụng sắp xếp nếu có
+        if ordering:
+            field = ordering.lstrip('-')
+            reverse = ordering.startswith('-')
+            
+            if field == 'keyword':
+                favorite_words.sort(key=lambda x: x['keyword'], reverse=reverse)
+            elif field == 'user_count':
+                favorite_words.sort(key=lambda x: x['user_count'], reverse=reverse)
+            else:
+                # Mặc định sắp xếp theo số người dùng giảm dần
+                favorite_words.sort(key=lambda x: x['user_count'], reverse=True)
+        else:
+            # Mặc định sắp xếp theo số người dùng giảm dần
+            favorite_words.sort(key=lambda x: x['user_count'], reverse=True)
+        
+        return favorite_words
     
     def delete_favorite_word(self, keyword):
         """Xóa từ khóa yêu thích khỏi tất cả người dùng"""

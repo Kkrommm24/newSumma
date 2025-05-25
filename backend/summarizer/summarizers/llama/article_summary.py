@@ -3,11 +3,14 @@ import os
 import json
 from typing import Optional
 import torch
+import multiprocessing
+multiprocessing.set_start_method('spawn', force=True)
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 from huggingface_hub import login
 import re
 from langdetect import detect, LangDetectException
+from summarizer.utils.tfidf_processor import TFIDFProcessor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -48,6 +51,7 @@ class LlamaSummarizer:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self._load_model()
+        self.tfidf_processor = TFIDFProcessor()
     
     def _load_model(self):
         try:
@@ -138,7 +142,8 @@ class LlamaSummarizer:
             if self.device == "cuda":
                 logger.debug(f"GPU memory đang sử dụng: {torch.cuda.memory_allocated(0)/1024**2:.2f}MB")
 
-            prompt = SUMMARY_PROMPT.format(content=content)
+            processed_content = self.tfidf_processor.get_important_sentences(content)
+            prompt = SUMMARY_PROMPT.format(content=processed_content)
 
             inputs = self.tokenizer(
                 prompt, 

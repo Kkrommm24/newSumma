@@ -9,10 +9,11 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 class AdminArticleSerializer(serializers.ModelSerializer):
     source_name = serializers.SerializerMethodField()
+    has_summary = serializers.SerializerMethodField()
     
     class Meta:
         model = NewsArticle
-        fields = ('id', 'title', 'content', 'url', 'source_id', 'source_name', 'published_at', 'image_url', 'created_at', 'updated_at')
+        fields = ('id', 'title', 'content', 'url', 'source_id', 'source_name', 'published_at', 'image_url', 'created_at', 'updated_at', 'has_summary')
         read_only_fields = ('id', 'created_at', 'updated_at')
     
     def get_source_name(self, obj):
@@ -21,9 +22,16 @@ class AdminArticleSerializer(serializers.ModelSerializer):
             return source.name
         except NewsSource.DoesNotExist:
             return None
+            
+    def get_has_summary(self, obj):
+        try:
+            return NewsSummary.objects.filter(article_id=obj.id).exists()
+        except Exception:
+            return False
 
 class AdminSummarySerializer(serializers.ModelSerializer):
     article_title = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
     
     class Meta:
         model = NewsSummary
