@@ -41,7 +41,10 @@ const { Title, Text } = Typography;
 
 const AdminDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useState('dashboard');
+  const [selectedMenu, setSelectedMenu] = useState(() => {
+    // Lấy menu đã chọn từ localStorage khi khởi tạo
+    return localStorage.getItem('adminSelectedMenu') || 'dashboard';
+  });
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
@@ -68,22 +71,50 @@ const AdminDashboard = () => {
     selectedKeyword
   } = useSelector(state => state.admin);
 
+  // Thêm state để lưu trữ tất cả các giá trị cho filter
+  const [allFilterValues, setAllFilterValues] = useState({
+    users: { usernames: [], emails: [] },
+    articles: { titles: [], sources: [] },
+    summaries: { articleTitles: [] },
+    comments: { usernames: [], articleTitles: [] }
+  });
+
   const handleTableChange = (pagination, filters, sorter) => {
-    console.log('Table change event:', { pagination, filters, sorter });
     
-    // Chỉ lưu current và pageSize vào localStorage
+    // Lưu trạng thái phân trang và filter vào localStorage
     localStorage.setItem('adminPagination', JSON.stringify({
       current: pagination.current,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      filters: filters,
+      sorter: sorter
     }));
     
-    fetchData(pagination.current, pagination.pageSize);
+    // Tạo query params cho filter
+    let queryParams = `page=${pagination.current}&page_size=${pagination.pageSize}`;
+    
+    // Thêm các filter vào query params
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value.length > 0) {
+        // Xử lý riêng cho source_name
+        if (key === 'source_name') {
+          queryParams += `&source_name=${value.join(',')}`;
+        } else {
+          queryParams += `&${key}=${value.join(',')}`;
+        }
+      }
+    });
+    
+    // Thêm sorter vào query params nếu có
+    if (sorter.field && sorter.order) {
+      queryParams += `&ordering=${sorter.order === 'descend' ? '-' : ''}${sorter.field}`;
+    }
+    
+    fetchData(pagination.current, pagination.pageSize, queryParams);
   };
 
-  const fetchData = async (page = 1, pageSize = 10) => {
+  const fetchData = async (page = 1, pageSize = 10, queryParams = '') => {
     try {
       dispatch(setLoading(true));
-      console.log('Fetching data for page:', page, 'pageSize:', pageSize);
       
       // Luôn gọi API dashboard để lấy thống kê
       const statsRes = await axiosInstance.get('/user/admin/dashboard/');
@@ -95,27 +126,27 @@ const AdminDashboard = () => {
 
       switch (selectedMenu) {
         case 'users':
-          response = await axiosInstance.get(`/user/admin/users/?page=${page}&page_size=${pageSize}`);
+          response = await axiosInstance.get(`/user/admin/users/?${queryParams}`);
           dispatch(setUsers(response.data.results));
           paginationData = response.data;
           break;
         case 'articles':
-          response = await axiosInstance.get(`/user/admin/articles/?page=${page}&page_size=${pageSize}`);
+          response = await axiosInstance.get(`/user/admin/articles/?${queryParams}`);
           dispatch(setArticles(response.data.results));
           paginationData = response.data;
           break;
         case 'summaries':
-          response = await axiosInstance.get(`/user/admin/summaries/?page=${page}&page_size=${pageSize}`);
+          response = await axiosInstance.get(`/user/admin/summaries/?${queryParams}`);
           dispatch(setSummaries(response.data.results));
           paginationData = response.data;
           break;
         case 'comments':
-          response = await axiosInstance.get(`/user/admin/comments/?page=${page}&page_size=${pageSize}`);
+          response = await axiosInstance.get(`/user/admin/comments/?${queryParams}`);
           dispatch(setComments(response.data.results));
           paginationData = response.data;
           break;
         case 'fav-words':
-          response = await axiosInstance.get(`/user/admin/fav-words/?page=${page}&page_size=${pageSize}`);
+          response = await axiosInstance.get(`/user/admin/fav-words/?${queryParams}`);
           dispatch(setFavoriteWords(response.data.results));
           paginationData = response.data;
           break;
@@ -124,15 +155,11 @@ const AdminDashboard = () => {
       }
 
       if (paginationData) {
-        console.log('Pagination data from API:', paginationData);
-        
         // Tính toán số trang tối đa
         const maxPage = Math.ceil(paginationData.count / pageSize);
-        console.log('Max page calculated:', maxPage, 'Current page:', page);
         
         // Nếu trang hiện tại vượt quá số trang tối đa, reset về trang 1
         if (page > maxPage) {
-          console.log('Page exceeds max page, resetting to page 1');
           localStorage.setItem('adminPagination', JSON.stringify({
             current: 1,
             pageSize: pageSize
@@ -154,19 +181,23 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      let errorMessage = 'Lỗi khi tải dữ liệu';
       
-      // Nếu lỗi 404, reset về trang 1
-      if (error.response && error.response.status === 404) {
-        console.log('404 error, resetting to page 1');
-        localStorage.setItem('adminPagination', JSON.stringify({
-          current: 1,
-          pageSize: 10
-        }));
-        fetchData(1, 10);
-        return;
+      if (error.response) {
+        // Lỗi từ server
+        errorMessage = error.response.data?.error || error.response.data?.detail || errorMessage;
+        console.error('Server error details:', error.response.data);
+      } else if (error.request) {
+        // Không nhận được response
+        errorMessage = 'Không thể kết nối đến server';
+        console.error('Network error:', error.request);
+      } else {
+        // Lỗi khi setup request
+        console.error('Request setup error:', error.message);
       }
       
-      message.error('Lỗi khi tải dữ liệu');
+      message.error(errorMessage);
+      
       // Reset về trang 1 nếu có lỗi
       dispatch(setPagination({
         current: 1,
@@ -205,16 +236,21 @@ const AdminDashboard = () => {
     };
   }, [user, navigate]);
 
-  // Thêm useEffect để khôi phục trạng thái phân trang từ localStorage
+  // Thêm useEffect để lưu selectedMenu vào localStorage khi nó thay đổi
+  useEffect(() => {
+    localStorage.setItem('adminSelectedMenu', selectedMenu);
+  }, [selectedMenu]);
+
+  // Sửa lại useEffect để khôi phục trạng thái phân trang từ localStorage
   useEffect(() => {
     const savedPagination = localStorage.getItem('adminPagination');
     if (savedPagination) {
       try {
-        const { current, pageSize } = JSON.parse(savedPagination);
+        const { current, pageSize, filters, sorter } = JSON.parse(savedPagination);
         // Kiểm tra tính hợp lệ của trang
         if (current > 0 && pageSize > 0) {
-          console.log('Restoring pagination from localStorage:', { current, pageSize });
-          fetchData(current, pageSize);
+          // Reset về trang 1 nhưng giữ nguyên filters và sorter
+          fetchData(1, pageSize, `page=1&page_size=${pageSize}${filters ? `&${Object.entries(filters).map(([key, value]) => `${key}=${value.join(',')}`).join('&')}` : ''}${sorter ? `&ordering=${sorter.order === 'descend' ? '-' : ''}${sorter.field}` : ''}`);
         } else {
           throw new Error('Invalid pagination data');
         }
@@ -398,16 +434,16 @@ const AdminDashboard = () => {
       title: 'Username',
       dataIndex: 'username',
       key: 'username',
-      sorter: (a, b) => a.username.localeCompare(b.username),
-      filters: users.map(user => ({ text: user.username, value: user.username })),
+      sorter: true,
+      filters: [],
       onFilter: (value, record) => record.username === value,
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      sorter: (a, b) => a.email.localeCompare(b.email),
-      filters: users.map(user => ({ text: user.email, value: user.email })),
+      sorter: true,
+      filters: [],
       onFilter: (value, record) => record.email === value,
     },
     {
@@ -430,7 +466,7 @@ const AdminDashboard = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       render: (date) => new Date(date).toLocaleDateString('vi-VN'),
-      sorter: (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      sorter: true,
     },
     {
       title: 'Thao tác',
@@ -463,7 +499,7 @@ const AdminDashboard = () => {
       dataIndex: 'title',
       key: 'title',
       sorter: (a, b) => a.title.localeCompare(b.title),
-      filters: articles.map(article => ({ text: article.title, value: article.title })),
+      filters: [],
       onFilter: (value, record) => record.title === value,
       render: (text, record) => (
         <a 
@@ -483,8 +519,8 @@ const AdminDashboard = () => {
       title: 'Nguồn',
       dataIndex: 'source_name',
       key: 'source_name',
-      sorter: (a, b) => a.source_name.localeCompare(b.source_name),
-      filters: [...new Set(articles.map(article => article.source_name))].map(source => ({ text: source, value: source })),
+      sorter: true,
+      filters: [],
       onFilter: (value, record) => record.source_name === value,
     },
     {
@@ -493,6 +529,13 @@ const AdminDashboard = () => {
       key: 'published_at',
       render: (date) => date ? new Date(date).toLocaleDateString('vi-VN') : 'N/A',
       sorter: (a, b) => new Date(a.published_at || 0) - new Date(b.published_at || 0),
+    },
+    {
+      title: 'Ngày cập nhật',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      render: (date) => new Date(date).toLocaleString('vi-VN'),
+      sorter: (a, b) => new Date(a.updated_at) - new Date(b.updated_at),
     },
     {
       title: 'Thao tác',
@@ -505,7 +548,7 @@ const AdminDashboard = () => {
             onClick={() => handleSummarize(record.id)}
             style={{ backgroundColor: '#252525', color: 'white', borderColor: '#252525' }}
           >
-            Tóm tắt lại
+            {record.has_summary ? 'Tóm tắt lại' : 'Tạo tóm tắt'}
           </Button>
           <Button
             type="primary"
@@ -527,7 +570,7 @@ const AdminDashboard = () => {
       dataIndex: 'article_title',
       key: 'article_title',
       sorter: (a, b) => a.article_title.localeCompare(b.article_title),
-      filters: summaries.map(summary => ({ text: summary.article_title, value: summary.article_title })),
+      filters: [],
       onFilter: (value, record) => record.article_title === value,
       render: (text, record) => (
         <a onClick={() => handleSummaryClick(record)}>{text}</a>
@@ -544,6 +587,13 @@ const AdminDashboard = () => {
       dataIndex: 'downvotes',
       key: 'downvotes',
       sorter: (a, b) => a.downvotes - b.downvotes,
+    },
+    {
+      title: 'Ngày cập nhật',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      render: (date) => new Date(date).toLocaleString('vi-VN'),
+      sorter: (a, b) => new Date(a.updated_at) - new Date(b.updated_at),
     },
     {
       title: 'Thao tác',
@@ -577,19 +627,31 @@ const AdminDashboard = () => {
       title: 'Nội dung',
       dataIndex: 'content',
       key: 'content',
-      render: (text) => <Text ellipsis={{ rows: 2 }}>{text}</Text>,
+      render: (text) => (
+        <div style={{ maxWidth: '300px' }}>
+          <Text ellipsis={{ tooltip: text }}>{text}</Text>
+        </div>
+      ),
     },
     {
       title: 'Người dùng',
       dataIndex: 'username',
       key: 'username',
       sorter: (a, b) => a.username.localeCompare(b.username),
+      filters: [],
+      onFilter: (value, record) => record.username === value,
     },
     {
       title: 'Bài viết',
       dataIndex: 'article_title',
       key: 'article_title',
-      render: (text) => <Text ellipsis={{ rows: 1 }}>{text}</Text>,
+      render: (text) => (
+        <div style={{ maxWidth: '200px' }}>
+          <Text ellipsis={{ tooltip: text }}>{text}</Text>
+        </div>
+      ),
+      filters: [],
+      onFilter: (value, record) => record.article_title === value,
     },
     {
       title: 'Ngày tạo',
@@ -622,7 +684,7 @@ const AdminDashboard = () => {
       title: 'Từ khóa',
       dataIndex: 'keyword',
       key: 'keyword',
-      sorter: (a, b) => a.keyword.localeCompare(b.keyword),
+      sorter: true,
       render: (text) => (
         <a onClick={() => handleKeywordClick(text)}>{text}</a>
       ),
@@ -631,7 +693,7 @@ const AdminDashboard = () => {
       title: 'Số người dùng',
       dataIndex: 'user_count',
       key: 'user_count',
-      sorter: (a, b) => a.user_count - b.user_count,
+      sorter: true,
     },
     {
       title: 'Thao tác',
@@ -684,8 +746,58 @@ const AdminDashboard = () => {
     },
   ];
 
+  // Hàm để lấy tất cả các giá trị cho filter
+  const fetchAllFilterValues = async () => {
+    try {
+      const [usersRes, articlesRes, summariesRes, commentsRes] = await Promise.all([
+        axiosInstance.get('/user/admin/users/filter-values/'),
+        axiosInstance.get('/user/admin/articles/filter-values/'),
+        axiosInstance.get('/user/admin/summaries/filter-values/'),
+        axiosInstance.get('/user/admin/comments/filter-values/')
+      ]);
+
+      setAllFilterValues({
+        users: {
+          usernames: usersRes.data.usernames,
+          emails: usersRes.data.emails
+        },
+        articles: {
+          titles: articlesRes.data.titles,
+          sources: articlesRes.data.sources
+        },
+        summaries: {
+          articleTitles: summariesRes.data.article_titles
+        },
+        comments: {
+          usernames: commentsRes.data.usernames,
+          articleTitles: commentsRes.data.article_titles
+        }
+      });
+
+      // Cập nhật filters cho các cột
+      userColumns[0].filters = usersRes.data.usernames.map(username => ({ text: username, value: username }));
+      userColumns[1].filters = usersRes.data.emails.map(email => ({ text: email, value: email }));
+      
+      articleColumns[0].filters = articlesRes.data.titles.map(title => ({ text: title, value: title }));
+      articleColumns[1].filters = articlesRes.data.sources.map(source => ({ text: source, value: source }));
+      
+      summaryColumns[0].filters = summariesRes.data.article_titles.map(title => ({ text: title, value: title }));
+      
+      commentColumns[1].filters = commentsRes.data.usernames.map(username => ({ text: username, value: username }));
+      commentColumns[2].filters = commentsRes.data.article_titles.map(title => ({ text: title, value: title }));
+
+    } catch (error) {
+      console.error('Error fetching filter values:', error);
+      message.error('Lỗi khi tải dữ liệu filter');
+    }
+  };
+
+  // Gọi fetchAllFilterValues khi component mount và khi chuyển tab
+  useEffect(() => {
+    fetchAllFilterValues();
+  }, [selectedMenu]);
+
   const renderContent = () => {
-    console.log('Current pagination state:', pagination);
     // Tạo showTotal function ở đây thay vì lưu trong state
     const showTotal = (total, range) => `${range[0]}-${range[1]} của ${total} mục`;
     

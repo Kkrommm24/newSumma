@@ -12,6 +12,7 @@ from user.serializers.admin_serializers import (
 from crawler.crawlers.baomoi.tasks import crawl_baomoi_articles
 from crawler.crawlers.vnexpress.tasks import crawl_vnexpress_articles
 from summarizer.summarizers.llama.tasks import generate_article_summaries
+from news.models import User, NewsArticle, NewsSource, Comment
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -82,7 +83,34 @@ class AdminSummarizeView(AdminBaseView):
 class AdminUserManagementView(AdminBaseView):
     def get(self, request):
         """Lấy danh sách người dùng"""
-        users = self.admin_service.get_all_users()
+        if request.path.endswith('filter-values/'):
+            try:
+                # Lấy tất cả các giá trị cho filter
+                usernames = User.objects.values_list('username', flat=True).distinct()
+                emails = User.objects.values_list('email', flat=True).distinct()
+                return Response({
+                    'usernames': list(usernames),
+                    'emails': list(emails)
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        filters = {}
+        for key in ['username', 'email']:
+            if request.query_params.get(key):
+                filters[key] = request.query_params.get(key).split(',')
+        
+        # Xử lý riêng cho is_active vì nó là boolean
+        if request.query_params.get('is_active'):
+            is_active_values = request.query_params.get('is_active').split(',')
+            filters['is_active'] = [value.lower() == 'true' for value in is_active_values]
+        
+        # Lấy thông tin sắp xếp
+        ordering = None
+        if request.query_params.get('ordering'):
+            ordering = request.query_params.get('ordering')
+        
+        users = self.admin_service.get_all_users(filters, ordering)
         page = self.paginate_queryset(users)
         serializer = AdminUserSerializer(page, many=True)
         return self.paginator.get_paginated_response(serializer.data)
@@ -120,7 +148,29 @@ class AdminUserManagementView(AdminBaseView):
 class AdminArticleManagementView(AdminBaseView):
     def get(self, request):
         """Lấy danh sách bài viết"""
-        articles = self.admin_service.get_all_articles()
+        if request.path.endswith('filter-values/'):
+            try:
+                # Lấy tất cả các giá trị cho filter
+                titles = NewsArticle.objects.values_list('title', flat=True).distinct()
+                sources = NewsSource.objects.values_list('name', flat=True).distinct()
+                return Response({
+                    'titles': list(titles),
+                    'sources': list(sources)
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        filters = {}
+        for key in ['title', 'source_name']:
+            if request.query_params.get(key):
+                filters[key] = request.query_params.get(key).split(',')
+        
+        # Lấy thông tin sắp xếp
+        ordering = None
+        if request.query_params.get('ordering'):
+            ordering = request.query_params.get('ordering')
+        
+        articles = self.admin_service.get_all_articles(filters, ordering)
         page = self.paginate_queryset(articles)
         serializer = AdminArticleSerializer(page, many=True)
         return self.paginator.get_paginated_response(serializer.data)
@@ -136,7 +186,26 @@ class AdminArticleManagementView(AdminBaseView):
 class AdminSummaryManagementView(AdminBaseView):
     def get(self, request):
         """Lấy danh sách tóm tắt"""
-        summaries = self.admin_service.get_all_summaries()
+        if request.path.endswith('filter-values/'):
+            try:
+                # Lấy tất cả các giá trị cho filter
+                article_titles = NewsArticle.objects.values_list('title', flat=True).distinct()
+                return Response({
+                    'article_titles': list(article_titles)
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        filters = {}
+        if request.query_params.get('article_title'):
+            filters['article_title'] = request.query_params.get('article_title').split(',')
+        
+        # Lấy thông tin sắp xếp
+        ordering = None
+        if request.query_params.get('ordering'):
+            ordering = request.query_params.get('ordering')
+        
+        summaries = self.admin_service.get_all_summaries(filters, ordering)
         page = self.paginate_queryset(summaries)
         serializer = AdminSummarySerializer(page, many=True)
         return self.paginator.get_paginated_response(serializer.data)
@@ -152,7 +221,29 @@ class AdminSummaryManagementView(AdminBaseView):
 class AdminCommentManagementView(AdminBaseView):
     def get(self, request):
         """Lấy danh sách bình luận"""
-        comments = self.admin_service.get_all_comments()
+        if request.path.endswith('filter-values/'):
+            try:
+                # Lấy tất cả các giá trị cho filter
+                usernames = User.objects.values_list('username', flat=True).distinct()
+                article_titles = NewsArticle.objects.values_list('title', flat=True).distinct()
+                return Response({
+                    'usernames': list(usernames),
+                    'article_titles': list(article_titles)
+                })
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        filters = {}
+        for key in ['username', 'article_title']:
+            if request.query_params.get(key):
+                filters[key] = request.query_params.get(key).split(',')
+        
+        # Lấy thông tin sắp xếp
+        ordering = None
+        if request.query_params.get('ordering'):
+            ordering = request.query_params.get('ordering')
+        
+        comments = self.admin_service.get_all_comments(filters, ordering)
         page = self.paginate_queryset(comments)
         serializer = AdminCommentSerializer(page, many=True)
         return self.paginator.get_paginated_response(serializer.data)
@@ -177,7 +268,12 @@ class AdminFavoriteWordManagementView(AdminBaseView):
             return self.paginator.get_paginated_response(serializer.data)
         else:
             # Nếu không có keyword, trả về danh sách từ khóa
-            favorite_words = self.admin_service.get_all_favorite_words()
+            # Lấy thông tin sắp xếp
+            ordering = None
+            if request.query_params.get('ordering'):
+                ordering = request.query_params.get('ordering')
+            
+            favorite_words = self.admin_service.get_all_favorite_words(ordering=ordering)
             page = self.paginate_queryset(favorite_words)
             serializer = AdminFavoriteWordSerializer(page, many=True)
             return self.paginator.get_paginated_response(serializer.data)

@@ -21,9 +21,7 @@ const ProtectedRoute = ({ children }) => {
 
   // Kiểm tra quyền admin cho route /admin
   if (location.pathname === '/admin') {
-    console.log('Checking admin access:', { user, isStaff: user?.is_staff });
     if (!user?.is_staff) {
-      console.log('User is not admin, redirecting to home');
       return <Navigate to="/" replace />;
     }
   }
