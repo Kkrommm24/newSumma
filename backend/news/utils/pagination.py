@@ -1,6 +1,7 @@
 from rest_framework.pagination import PageNumberPagination, LimitOffsetPagination
 from rest_framework.response import Response
 
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
@@ -14,6 +15,7 @@ class StandardResultsSetPagination(PageNumberPagination):
             'results': data
         })
 
+
 class InfiniteScrollPagination(LimitOffsetPagination):
     default_limit = 10
-    max_limit = 50 
+    max_limit = 50

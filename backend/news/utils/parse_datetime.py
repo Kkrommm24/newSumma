@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 
+
 def parse_datetime_manual(datetime_str):
     datetime_clean = re.sub(r'^[^\d]*', '', datetime_str)
     datetime_clean = re.sub(r'\s*\(.*\)', '', datetime_clean)

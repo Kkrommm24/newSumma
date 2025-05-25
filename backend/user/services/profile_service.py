@@ -7,6 +7,7 @@ import cloudinary.api
 
 User = get_user_model()
 
+
 def get_user_profile(user_id):
     try:
         user = User.objects.get(pk=user_id)
@@ -21,6 +22,7 @@ def get_user_profile(user_id):
     except ObjectDoesNotExist:
         return None
 
+
 def update_user_profile(user_id, data, avatar_file=None):
     """
     Cập nhật thông tin hồ sơ người dùng.
@@ -31,7 +33,7 @@ def update_user_profile(user_id, data, avatar_file=None):
 
         for key, value in data.items():
             if key != 'avatar':
-               setattr(user, key, value)
+                setattr(user, key, value)
 
         if avatar_file:
             try:
@@ -52,6 +54,7 @@ def update_user_profile(user_id, data, avatar_file=None):
 
     except ObjectDoesNotExist:
         return None
+
 
 def delete_user_profile(user_id):
     try:

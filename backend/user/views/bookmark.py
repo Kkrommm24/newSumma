@@ -1,12 +1,13 @@
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from user.serializers.serializers import (
-    UserBookmarkSerializer, 
-    AddBookmarkSerializer, 
+    UserBookmarkSerializer,
+    AddBookmarkSerializer,
     DeleteBookmarkSerializer
 )
 from user.services import bookmark_service
 from rest_framework.exceptions import APIException
+
 
 class UserBookmarkView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]

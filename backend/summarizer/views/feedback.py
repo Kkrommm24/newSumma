@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 feedback_service = FeedbackService()
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def record_summary_feedback(request):
@@ -20,8 +21,10 @@ def record_summary_feedback(request):
     user = request.user
 
     if not summary_id:
-        return Response({'status': 'error', 'message': 'summary_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response({'status': 'error',
+                         'message': 'summary_id is required.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
     is_upvote = None
     if is_upvote_input is True:
         is_upvote = True
@@ -30,32 +33,40 @@ def record_summary_feedback(request):
 
     try:
         summary_obj, trigger_resummarize, final_upvotes, final_downvotes = feedback_service.record_feedback_and_check_threshold(
-            user=user,
-            summary_id=summary_id,
-            is_upvote=is_upvote
-        )
+            user=user, summary_id=summary_id, is_upvote=is_upvote)
 
         if summary_obj is None:
             try:
                 NewsSummary.objects.get(id=summary_id)
-                return Response({'status': 'error', 'message': 'An internal server error occurred while processing feedback.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {
+                        'status': 'error',
+                        'message': 'An internal server error occurred while processing feedback.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except NewsSummary.DoesNotExist:
-                 return Response({'status': 'error', 'message': 'Summary not found.'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'status': 'error',
+                                 'message': 'Summary not found.'},
+                                status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                return Response({'status': 'error', 'message': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'status': 'error',
+                                 'message': 'An unexpected error occurred.'},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         article_published_at = None
         try:
             article = NewsArticle.objects.get(id=summary_obj.article_id)
             article_published_at = article.published_at
         except NewsArticle.DoesNotExist:
-            logger.warning(f"View: Không tìm thấy NewsArticle với ID {summary_obj.article_id} cho summary {summary_obj.id}")
+            logger.warning(
+                f"View: Không tìm thấy NewsArticle với ID {summary_obj.article_id} cho summary {summary_obj.id}")
         except Exception as e:
-             logger.exception(f"View: Lỗi khi lấy NewsArticle {summary_obj.article_id} cho summary {summary_obj.id}: {e}")
+            logger.exception(
+                f"View: Lỗi khi lấy NewsArticle {summary_obj.article_id} cho summary {summary_obj.id}: {e}")
 
         if trigger_resummarize:
             try:
-                summarize_single_article_task.delay(article_id_str=str(summary_obj.article_id))
+                summarize_single_article_task.delay(
+                    article_id_str=str(summary_obj.article_id))
             except Exception as task_error:
                 pass
 
@@ -70,4 +81,6 @@ def record_summary_feedback(request):
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({'status': 'error', 'message': 'An unexpected error occurred in the view.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+        return Response({'status': 'error',
+                         'message': 'An unexpected error occurred in the view.'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)

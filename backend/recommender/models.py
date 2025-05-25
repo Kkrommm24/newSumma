@@ -9,6 +9,7 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+
 class SummaryViewLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(null=True, blank=True)
@@ -31,6 +32,7 @@ class SummaryViewLog(models.Model):
     def __str__(self):
         return f"View log {self.id}: User {self.user_id} viewed summary {self.summary_id} for {self.duration_seconds}s"
 
+
 class SummaryClickLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(null=True, blank=True)
@@ -48,6 +50,7 @@ class SummaryClickLog(models.Model):
 
     def __str__(self):
         return f"Click log {self.id}: User {self.user_id} clicked summary {self.summary_id}"
+
 
 class SummaryRanking(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

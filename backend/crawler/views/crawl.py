@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def trigger_crawl_baomoi(request):
@@ -27,6 +28,7 @@ def trigger_crawl_baomoi(request):
             'message': 'Lỗi khi gửi task crawl Báo Mới',
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])

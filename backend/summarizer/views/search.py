@@ -11,6 +11,7 @@ from summarizer.services.search_service import search_summaries_with_articles
 
 logger = logging.getLogger(__name__)
 
+
 class ArticleSummarySearchView(APIView):
     permission_classes = [AllowAny]
     pagination_class = StandardResultsSetPagination
@@ -28,7 +29,7 @@ class ArticleSummarySearchView(APIView):
 
         try:
             summary_queryset = search_summaries_with_articles(query)
-            
+
             if summary_queryset is None:
                 return Response(
                     {"error": "An error occurred during search processing."},
@@ -36,21 +37,26 @@ class ArticleSummarySearchView(APIView):
                 )
 
             paginator = self.pagination_class()
-            paginated_summaries = paginator.paginate_queryset(summary_queryset, request, view=self)
-            
+            paginated_summaries = paginator.paginate_queryset(
+                summary_queryset, request, view=self)
+
             articles_dict = {}
             if paginated_summaries:
-                article_ids = {summary.article_id for summary in paginated_summaries}
-                articles_queryset = NewsArticle.objects.filter(id__in=article_ids)
-                articles_dict = {str(article.id): article for article in articles_queryset}
+                article_ids = {
+                    summary.article_id for summary in paginated_summaries}
+                articles_queryset = NewsArticle.objects.filter(
+                    id__in=article_ids)
+                articles_dict = {
+                    str(article.id): article for article in articles_queryset}
 
             serializer_context = {'articles': articles_dict}
-            serializer = SummarySerializer(paginated_summaries, many=True, context=serializer_context)
+            serializer = SummarySerializer(
+                paginated_summaries, many=True, context=serializer_context)
 
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
             return Response(
-                {"error": "An unexpected error occurred."}, 
+                {"error": "An unexpected error occurred."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

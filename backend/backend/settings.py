@@ -28,7 +28,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key")
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
-load_dotenv() # Load biến môi trường từ .env
+load_dotenv()  # Load biến môi trường từ .env
 
 # Application definition
 
@@ -106,7 +106,6 @@ DATABASES = {
 }
 
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -159,8 +158,12 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery settings
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL',
+    'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get(
+    'CELERY_RESULT_BACKEND',
+    'redis://localhost:6379/0')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_ACCEPT_CONTENT = ['json']
@@ -205,12 +208,12 @@ CELERY_TASK_ROUTES = {
         'routing_key': 'low_priority.generate_bulk',
     },
     'crawler.crawlers.baomoi.tasks.crawl_baomoi_articles': {
-         'queue': 'low_priority',
-         'routing_key': 'low_priority.crawl_baomoi',
+        'queue': 'low_priority',
+        'routing_key': 'low_priority.crawl_baomoi',
     },
-     'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
-         'queue': 'low_priority',
-         'routing_key': 'low_priority.crawl_vnexpress',
+    'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
+        'queue': 'low_priority',
+        'routing_key': 'low_priority.crawl_vnexpress',
     },
     'user.tasks.send_password_reset_email': {
         'queue': 'high_priority',
@@ -226,9 +229,9 @@ FRONTEND_RESET_PASSWORD_URL = 'http://localhost:5173/reset-password'
 
 # Cloudinary configuration
 cloudinary.config(
-    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key = os.getenv('CLOUDINARY_API_KEY'),
-    api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
     secure=True
 )
 

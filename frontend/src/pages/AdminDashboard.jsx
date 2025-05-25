@@ -342,8 +342,31 @@ const AdminDashboard = () => {
           
           if (response.data) {
             message.success(`Đã ${user.is_active ? 'khóa' : 'mở khóa'} tài khoản thành công`);
-            const usersRes = await axiosInstance.get('/user/admin/users/');
-            dispatch(setUsers(usersRes.data));
+            // Gọi lại fetchData để làm mới dữ liệu bảng users và pagination
+            // Lấy thông tin pagination, filters, sorter hiện tại
+            const currentPaginationState = pagination; // Từ Redux state admin.pagination
+            const savedAdminPaginationConfig = JSON.parse(localStorage.getItem('adminPagination')) || {};
+            const currentFilters = savedAdminPaginationConfig.filters || {};
+            const currentSorter = savedAdminPaginationConfig.sorter || {};
+
+            let queryParamsString = `page=${currentPaginationState.current}&page_size=${currentPaginationState.pageSize}`;
+            
+            Object.entries(currentFilters).forEach(([key, value]) => {
+              if (value && value.length > 0) {
+                // Xử lý riêng cho source_name nếu cần, hoặc backend tự xử lý
+                // if (key === 'source_name') {
+                //   queryParamsString += `&source_name=${value.join(',')}`;
+                // } else {
+                queryParamsString += `&${key}=${value.join(',')}`;
+                // }
+              }
+            });
+            
+            if (currentSorter.field && currentSorter.order) {
+              queryParamsString += `&ordering=${currentSorter.order === 'descend' ? '-' : ''}${currentSorter.field}`;
+            }
+            
+            fetchData(currentPaginationState.current, currentPaginationState.pageSize, queryParamsString);
           }
         } catch (error) {
           const errorMessage = error.response?.data?.error || 'Lỗi khi thực hiện thao tác';
