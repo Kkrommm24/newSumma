@@ -1,39 +1,23 @@
-import logging
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import NotFound
 from news.models import NewsSummary, NewsArticle
-from django.db.models import Exists, OuterRef
 
-logger = logging.getLogger(__name__)
+def get_summary_by_id(summary_id: str):
+    try:
+        summary = get_object_or_404(NewsSummary, id=summary_id)
+        return summary
+    except NewsSummary.DoesNotExist:
+        raise NotFound(detail=f"Không tìm thấy tóm tắt với ID: {summary_id}", code="summary_not_found")
 
-class SummaryService:
-    def __init__(self):
-        pass
+def get_latest_summary_by_article_id(article_id: str):
+    try:
+        article = get_object_or_404(NewsArticle, id=article_id)
+    except NewsArticle.DoesNotExist:
+        raise NotFound(detail=f"Không tìm thấy bài viết với ID: {article_id}", code="article_not_found")
+
+    summary = NewsSummary.objects.filter(article_id=article_id).order_by('-created_at').first()
     
-    def create_summary(self, article_id: str, summary_text: str) -> NewsSummary:
-        try:
-            summary = NewsSummary.objects.create(
-                article_id=article_id,
-                summary_text=summary_text,
-                upvotes=0,
-                downvotes=0
-            )
-            return summary
-        except Exception as e:
-            logger.exception(f"Lỗi khi tạo summary cho bài viết ID {article_id}: {str(e)}")
-            return None
-    
-    def get_articles_without_summary(self, limit: int = 10):
-        try:
-            articles = NewsArticle.objects.filter(
-                ~Exists(
-                    NewsSummary.objects.filter(
-                        article_id=OuterRef('id')
-                    )
-                )
-            ).order_by('-published_at')[:limit]
-            
-            logger.info(f"Tìm thấy {articles.count()} bài viết cần tóm tắt")
-            return articles
-            
-        except Exception as e:
-            logger.exception(f"Lỗi khi lấy danh sách bài viết: {str(e)}")
-            return [] 
+    if not summary:
+        raise NotFound(detail=f"Không tìm thấy tóm tắt cho bài viết ID: {article_id}", code="summary_not_found")
+        
+    return summary, article 

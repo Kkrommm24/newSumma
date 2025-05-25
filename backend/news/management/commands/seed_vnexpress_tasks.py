@@ -20,7 +20,7 @@ class Command(BaseCommand):
         PeriodicTask.objects.create(
             name='Crawl vnexpress every 10 minutes',
             interval=schedule,
-            task='news.crawlers.vnexpress.tasks.crawl_vnexpress_articles',
+            task='crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles',
             args=json.dumps([10]),
         )
 

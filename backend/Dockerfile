@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 libnss3 libgconf-2-4 libx11-xcb1 libxcomposite1 libxdamage1 \
     libxrandr2 libasound2 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libxss1 \
     libappindicator3-1 xdg-utils \
+    gettext \
     --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome stable
@@ -46,8 +47,8 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Copy local ChromeDriver to a known location
-RUN chmod +x news/chromedriver-linux64/chromedriver && \
-    cp news/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+RUN chmod +x crawler/chromedriver-linux64/chromedriver && \
+    cp crawler/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
 
 # Create a non-root user
 RUN groupadd -g 1001 appgroup && \

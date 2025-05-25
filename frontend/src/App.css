@@ -45,10 +45,88 @@
   color: #333 !important;
 }
 
-.ant-btn-primary {
-  background-color: #1890ff;
+.ant-btn-primary:not(.ant-input-search-button) {
+   background-color: #1890ff;
+}
+
+/* Đặt màu đen/xám cho nút trong Input.Search */
+.ant-input-search .ant-btn-primary {
+  background-color: #1f2937 !important; /* Màu đen xám */
+  border-color: #1f2937 !important;
+  color: white !important;
+}
+.ant-input-search .ant-btn-primary:hover {
+  background-color: #374151 !important; /* Màu hover */
+  border-color: #374151 !important;
+}
+.ant-input-search .ant-btn-primary:active {
+  background-color: #111827 !important; /* Màu active */
+  border-color: #111827 !important;
 }
 
 .ant-btn-primary.ant-btn-dangerous {
   background-color: #ff4d4f;
+}
+
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: #f5f5f5 !important;
+  font-weight: normal !important;
+}
+
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled):hover {
+   background-color: #f5f5f5 !important;
+}
+
+.custom-float-button .ant-float-btn-body {
+  background-color: #1f2937 !important;
+  border-color: #1f2937 !important;
+}
+
+.custom-float-button .ant-float-btn-icon {
+  color: white !important;
+}
+
+.custom-float-button .ant-float-btn:hover .ant-float-btn-body {
+  background-color: #374151 !important;
+  border-color: #374151 !important;
+}
+
+/* Style cho nút Hoàn tác tùy chỉnh */
+.custom-undo-button {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #374151 !important;
+  color: white !important;
+  border-radius: 6px !important;
+  /* Bạn có thể thêm padding nếu cần, ví dụ: padding: 4px 10px !important; */
+}
+
+.custom-undo-button:hover, 
+.custom-undo-button:focus {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #1f2937 !important;
+  color: white !important;
+}
+
+.custom-undo-button:active {
+  background-color: #111827 !important; /* gray-900 */
+  border-color: #111827 !important;
+  color: white !important;
+}
+
+/* Style cho admin sidebar menu */
+.admin-sidebar-menu .ant-menu-item:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.admin-sidebar-menu .ant-menu-item-selected {
+  background-color: #f5f5f5 !important;
+  color: #1f2937 !important;
+}
+
+.admin-sidebar-menu .ant-menu-item-selected::after {
+  border-right-color: #1f2937 !important;
+}
+
+.admin-sidebar-menu .ant-menu-item:hover::after {
+  border-right-color: #1f2937 !important;
 }

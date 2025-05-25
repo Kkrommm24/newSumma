@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 import environ
 from pathlib import Path
+from datetime import timedelta
+from kombu import Queue
+from dotenv import load_dotenv
+import cloudinary
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
@@ -23,6 +28,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key")
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
+load_dotenv() # Load biến môi trường từ .env
 
 # Application definition
 
@@ -37,14 +43,21 @@ INSTALLED_APPS = [
     'django_celery_results',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'news',
+    'crawler',
+    'summarizer',
+    'authorizer',
+    'recommender',
+    'user'
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -116,7 +129,16 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'vi'
+
+LANGUAGES = [
+    ('en', _('English')),
+    ('vi', _('Vietnamese')),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
@@ -137,10 +159,78 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery settings
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", default="redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
+
+AUTH_USER_MODEL = 'news.User'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+
+CELERY_TASK_QUEUES = (
+    Queue('default', routing_key='task.#'),
+    Queue('high_priority', routing_key='high_priority.#'),
+    Queue('low_priority', routing_key='low_priority.#'),
+)
+
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_DEFAULT_EXCHANGE = 'tasks'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'task.default'
+
+CELERY_TASK_ROUTES = {
+    'summarizer.summarizers.llama.tasks.summarize_single_article_task': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.summarize_single',
+    },
+    'summarizer.summarizers.llama.tasks.generate_article_summaries': {
+        'queue': 'low_priority',
+        'routing_key': 'low_priority.generate_bulk',
+    },
+    'crawler.crawlers.baomoi.tasks.crawl_baomoi_articles': {
+         'queue': 'low_priority',
+         'routing_key': 'low_priority.crawl_baomoi',
+    },
+     'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
+         'queue': 'low_priority',
+         'routing_key': 'low_priority.crawl_vnexpress',
+    },
+    'user.tasks.send_password_reset_email': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.email_reset',
+    },
+    'user.tasks.send_welcome_email_task': {
+        'queue': 'high_priority',
+        'routing_key': 'high_priority.welcome_mail',
+    },
+}
+
+FRONTEND_RESET_PASSWORD_URL = 'http://localhost:5173/reset-password'
+
+# Cloudinary configuration
+cloudinary.config(
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.getenv('CLOUDINARY_API_KEY'),
+    api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
+
+DEFAULT_AVATAR_URL = os.getenv('DEFAULT_AVATAR_URL', '')
+CLOUDINARY_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'avatars')

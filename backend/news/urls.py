@@ -1,13 +1,10 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from news.views.crawl import CrawlerViewSet
-from news.views.summary import get_summaries, ArticleSummaryViewSet
-
-router = DefaultRouter()
-router.register(r'summarizers', ArticleSummaryViewSet, basename='summarizer')
-router.register(r'crawlers', CrawlerViewSet, basename='crawler')
+from django.urls import path
+from .views.summary import SummaryDetailView, ArticleSummaryView
+from .views.comment import CommentListCreateView, CommentDetailView
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('summaries/', get_summaries, name='get-summaries'),
+    path('summaries/<uuid:id>/', SummaryDetailView.as_view(), name='summary-detail'),
+    path('articles/<uuid:article_id>/summary/', ArticleSummaryView.as_view(), name='article-summary'),
+    path('summaries/<uuid:summary_id>/comments/', CommentListCreateView.as_view(), name='summary-comments'),
+    path('comments/<uuid:id>/', CommentDetailView.as_view(), name='comment-detail'),
 ]
