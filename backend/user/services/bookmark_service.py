@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
-from news.models import UserSavedArticle, NewsArticle, Category, NewsArticleCategory, ArticleStats
+from news.models import NewsArticle, ArticleStats
+from user.models import UserSavedArticle
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from django.db.models import F

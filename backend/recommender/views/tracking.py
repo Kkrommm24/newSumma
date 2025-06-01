@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from recommender.models import SummaryClickLog
-from news.models import NewsSummary, ArticleStats
+from news.models import ArticleStats
+from summarizer.models import NewsSummary
 from django.shortcuts import get_object_or_404
 from django.db.models import F
 
@@ -59,8 +60,7 @@ def log_summary_view_time(request):
         return Response({"error": "Summary not found"},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return Response({"error": "Failed to log view time due to a server error."},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Failed to log view time due to a server error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -78,17 +78,15 @@ def track_source_click(request):
         summary_object = get_object_or_404(
             NewsSummary, id=summary_id_from_request)
 
-        # 1. Create SummaryClickLog
         SummaryClickLog.objects.create(
             user_id=user_id_to_log,
             summary_id=summary_object.id
         )
 
-        # 2. Update ArticleStats view_count for the corresponding article
         if summary_object.article_id:
             article_stats, created = ArticleStats.objects.get_or_create(
                 article_id=summary_object.article_id,
-                defaults={'view_count': 1}  # Nếu tạo mới thì view đầu tiên
+                defaults={'view_count': 1}
             )
             if not created:
                 ArticleStats.objects.filter(

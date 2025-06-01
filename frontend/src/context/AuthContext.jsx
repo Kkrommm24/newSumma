@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }) => {
           setCurrentUserInfo(parsedUser);
           setIsAuthenticated(true);
         } catch (parseError) {
-          console.error('[AuthContext] Error parsing stored userInfo:', parseError);
           // Nếu userInfo lỗi, coi như chưa đăng nhập
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');

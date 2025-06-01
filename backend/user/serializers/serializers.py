@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from news.models import UserPreference, SearchHistory, UserSavedArticle, NewsArticle, Category, NewsArticleCategory
+from news.models import NewsArticle, Category, NewsArticleCategory
+from user.models import UserPreference, User, UserSavedArticle, SearchHistory
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.password_validation import validate_password, MinimumLengthValidator, CommonPasswordValidator, NumericPasswordValidator, UserAttributeSimilarityValidator
+from django.contrib.auth.password_validation import validate_password, MinimumLengthValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 User = get_user_model()
@@ -21,8 +22,6 @@ def translate_password_errors(error_list):
         error_code = getattr(error, 'code', None)  # Lấy code một cách an toàn
 
         if error_code == 'password_too_short':
-            # Lấy min_length từ thông điệp lỗi hoặc cấu hình nếu cần
-            # Cách đơn giản nhất là dùng thông điệp từ điển
             min_length = MinimumLengthValidator().min_length  # Lấy cấu hình min_length
             translated_errors.append(
                 _(f"Mật khẩu phải chứa ít nhất {min_length} ký tự."))

@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import NotFound
-from news.models import Comment, NewsSummary, User
+from news.models import Comment
+from summarizer.models import NewsSummary
 
 
 def get_comments_by_summary_id(summary_id: str):

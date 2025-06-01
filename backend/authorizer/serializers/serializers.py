@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from news.models import User
+from user.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed

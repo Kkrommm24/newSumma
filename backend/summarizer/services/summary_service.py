@@ -1,5 +1,6 @@
 import logging
-from news.models import NewsSummary, NewsArticle, SummaryFeedback
+from news.models import NewsArticle
+from summarizer.models import NewsSummary, SummaryFeedback
 from django.db.models import Exists, OuterRef
 from django.contrib.postgres.search import SearchVector
 from summarizer.summarizers.llama.article_summary import LlamaSummarizer

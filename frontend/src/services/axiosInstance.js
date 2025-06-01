@@ -1,6 +1,5 @@
 import axios from 'axios';
 import AuthService from './authService';
-import { useAuth } from '../context/AuthContext.jsx';
 
 const handleLogout = () => {
     localStorage.removeItem('accessToken');

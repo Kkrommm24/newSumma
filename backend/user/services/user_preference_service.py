@@ -1,5 +1,5 @@
 import logging
-from news.models import UserPreference
+from user.models import UserPreference
 from django.db import transaction
 
 logger = logging.getLogger(__name__)

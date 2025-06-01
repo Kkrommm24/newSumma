@@ -1,7 +1,7 @@
 import logging
 from django.db.models import Q, F, Case, When, Value, IntegerField
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
-from news.models import NewsSummary, NewsArticle
+from summarizer.models import NewsSummary
 
 logger = logging.getLogger(__name__)
 

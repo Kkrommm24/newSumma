@@ -1,5 +1,5 @@
 import logging
-from news.models import SearchHistory
+from user.models import SearchHistory
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone

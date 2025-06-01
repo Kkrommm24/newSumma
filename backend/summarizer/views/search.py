@@ -4,8 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from news.models import NewsSummary, NewsArticle
-from news.serializers.serializers import SummarySerializer
+from news.models import NewsArticle
+from summarizer.serializers.serializers import SummarySerializer
 from news.utils.pagination import StandardResultsSetPagination
 from summarizer.services.search_service import search_summaries_with_articles
 

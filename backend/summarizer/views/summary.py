@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from news.models import NewsSummary
-from news.serializers.serializers import SummarySerializer
+from summarizer.models import NewsSummary
+from summarizer.serializers.serializers import SummarySerializer
 from summarizer.services.article_service import ArticleService
 from summarizer.summarizers.llama.tasks import generate_article_summaries, summarize_single_article_task
 import logging

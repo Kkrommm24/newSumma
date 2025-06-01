@@ -171,7 +171,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
-AUTH_USER_MODEL = 'news.User'
+AUTH_USER_MODEL = 'user.User'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
@@ -189,9 +189,9 @@ SIMPLE_JWT = {
 }
 
 CELERY_TASK_QUEUES = (
-    Queue('default', routing_key='task.#'),
-    Queue('high_priority', routing_key='high_priority.#'),
-    Queue('low_priority', routing_key='low_priority.#'),
+    Queue('default', routing_key='default.#'),
+    Queue('gpu_crawler_queue', routing_key='gpu_crawler.#'),
+    Queue('fast_tasks_queue', routing_key='fast_tasks.#'),
 )
 
 CELERY_TASK_DEFAULT_QUEUE = 'default'
@@ -200,28 +200,22 @@ CELERY_TASK_DEFAULT_ROUTING_KEY = 'task.default'
 
 CELERY_TASK_ROUTES = {
     'summarizer.summarizers.llama.tasks.summarize_single_article_task': {
-        'queue': 'high_priority',
-        'routing_key': 'high_priority.summarize_single',
+        'queue': 'gpu_crawler_queue',
     },
     'summarizer.summarizers.llama.tasks.generate_article_summaries': {
-        'queue': 'low_priority',
-        'routing_key': 'low_priority.generate_bulk',
+        'queue': 'gpu_crawler_queue',
     },
     'crawler.crawlers.baomoi.tasks.crawl_baomoi_articles': {
-        'queue': 'low_priority',
-        'routing_key': 'low_priority.crawl_baomoi',
+        'queue': 'gpu_crawler_queue',
     },
     'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
-        'queue': 'low_priority',
-        'routing_key': 'low_priority.crawl_vnexpress',
+        'queue': 'gpu_crawler_queue',
     },
     'user.tasks.send_password_reset_email': {
-        'queue': 'high_priority',
-        'routing_key': 'high_priority.email_reset',
+        'queue': 'fast_tasks_queue',
     },
     'user.tasks.send_welcome_email_task': {
-        'queue': 'high_priority',
-        'routing_key': 'high_priority.welcome_mail',
+        'queue': 'fast_tasks_queue',
     },
 }
 

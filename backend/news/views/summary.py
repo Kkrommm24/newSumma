@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
-from news.models import NewsArticle, NewsSummary
-from news.serializers.serializers import SummarySerializer
+from news.models import NewsArticle
+from summarizer.models import NewsSummary
+from summarizer.serializers.serializers import SummarySerializer
 from news.services import summary_service
 
 

@@ -1,4 +1,6 @@
-from news.models import User, NewsArticle, NewsSummary, NewsSource, ArticleStats, Comment, UserPreference
+from news.models import NewsArticle, NewsSource, ArticleStats, Comment
+from summarizer.models import NewsSummary
+from user.models import User, UserPreference
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta

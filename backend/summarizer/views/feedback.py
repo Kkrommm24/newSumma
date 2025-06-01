@@ -6,7 +6,8 @@ from rest_framework import status
 
 from summarizer.services.feedback_service import FeedbackService
 from summarizer.summarizers.llama.tasks import summarize_single_article_task
-from news.models import NewsSummary, NewsArticle
+from news.models import NewsArticle
+from summarizer.models import NewsSummary
 
 logger = logging.getLogger(__name__)
 

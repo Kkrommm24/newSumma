@@ -6,9 +6,8 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from recommender.services.recommend_service import (
     get_recommendations_for_user
 )
-from news.serializers.serializers import (
-    SummarySerializer as NewsAppSummarySerializer,
-    ArticleDetailSerializer as NewsArticleSerializer
+from summarizer.serializers.serializers import (
+    SummarySerializer as NewsAppSummarySerializer
 )
 import logging
 

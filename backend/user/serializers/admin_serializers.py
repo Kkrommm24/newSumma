@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from news.models import User, NewsArticle, NewsSummary, NewsSource, Comment, UserPreference
+from news.models import NewsArticle, NewsSource, Comment
+from summarizer.models import NewsSummary
+from user.models import User
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -73,17 +75,6 @@ class AdminSummarySerializer(serializers.ModelSerializer):
             return article.title
         except NewsArticle.DoesNotExist:
             return None
-
-
-class AdminStatsSerializer(serializers.Serializer):
-    total_users = serializers.IntegerField()
-    total_articles = serializers.IntegerField()
-    total_summaries = serializers.IntegerField()
-    total_comments = serializers.IntegerField()
-    total_views = serializers.IntegerField()
-    new_users_24h = serializers.IntegerField()
-    new_articles_24h = serializers.IntegerField()
-    new_summaries_24h = serializers.IntegerField()
 
 
 class AdminCommentSerializer(serializers.ModelSerializer):
