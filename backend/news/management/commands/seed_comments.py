@@ -1,8 +1,8 @@
 import random
 from django.core.management.base import BaseCommand
 from django.db import transaction, IntegrityError
-from news.models import Comment, User, NewsArticle, ArticleStats
-from django.db.models import Count
+from news.models import Comment, NewsArticle, ArticleStats
+from user.models import User
 
 
 class Command(BaseCommand):

@@ -1,7 +1,7 @@
 import os
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from news.models import User
+from user.models import User
 
 # Consider loading sensitive data like passwords from environment variables
 DEFAULT_PASSWORD = os.environ.get(

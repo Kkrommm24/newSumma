@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from news.models import User, UserPreference
+from user.models import User, UserPreference
 import logging
 import random
 

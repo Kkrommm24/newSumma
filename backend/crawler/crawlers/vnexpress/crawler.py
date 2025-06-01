@@ -6,6 +6,7 @@ from crawler.crawlers.driver import get_driver
 from news.models import NewsArticle, Category
 import time
 import logging
+from selenium.common.exceptions import TimeoutException
 
 logger = logging.getLogger(__name__)
 
@@ -240,17 +241,34 @@ class VNExpressCrawler:
 
     def _get_category(self, driver, url):
         try:
-            category_elem = driver.find_element(
-                By.XPATH,
-                '//ul[contains(@class, "breadcrumb")]//a[contains(@data-medium, "Menu")]')
-            category_name = category_elem.text.strip().upper()
+            xpath_category = '//ul[contains(@class, "breadcrumb")]//a[contains(@data-medium, "Menu")]'
+            # Đảm bảo phần tử có mặt trong DOM
+            WebDriverWait(driver, 7).until(
+                EC.presence_of_element_located((By.XPATH, xpath_category))
+            )
+            category_elem = driver.find_element(By.XPATH, xpath_category)
+
+            # Sử dụng JavaScript để lấy textContent một cách đáng tin cậy hơn
+            raw_category_name = driver.execute_script(
+                "return arguments[0].textContent;", category_elem)
+            if raw_category_name is None:  # execute_script có thể trả về None
+                raw_category_name = ""
+
+            category_name = raw_category_name.strip().upper()
 
             if category_name == 'SỨC KHỎE':
                 category_name = 'SỨC KHOẺ'
+                logger.info(
+                    f"URL: {url} - Đã chuyển đổi 'SỨC KHỎE' thành 'SỨC KHOẺ'")
+
             return category_name
+        except TimeoutException:
+            logger.warning(
+                f"❌ Timeout khi chờ phần tử category cho VNExpress {url} với XPath: {xpath_category}")
+            return None
         except Exception as e:
             logger.warning(
-                f"❌ Không thể lấy thông tin category cho VNExpress {url}.")
+                f"❌ Không thể lấy thông tin category cho VNExpress {url}. Lỗi: {type(e).__name__} - {e}")
             return None
 
     def _get_content(self, driver, url):

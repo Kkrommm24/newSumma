@@ -1,6 +1,9 @@
-from news.models import NewsArticle, NewsSummary, UserPreference, SearchHistory, Category, NewsArticleCategory
-from recommender.models import SummaryViewLog, SummaryRanking, SummaryClickLog
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from news.models import NewsArticle, NewsArticleCategory
+from user.models import UserPreference
+from summarizer.models import NewsSummary
+from user.models import SearchHistory
+from recommender.models import SummaryViewLog, SummaryRanking
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import F
 import logging
 from functools import reduce

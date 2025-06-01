@@ -5,7 +5,8 @@ from django.utils import timezone
 from uuid import UUID
 from typing import Optional
 
-from news.models import NewsSummary, SummaryFeedback, User
+from summarizer.models import NewsSummary, SummaryFeedback
+from user.models import User
 
 logger = logging.getLogger(__name__)
 

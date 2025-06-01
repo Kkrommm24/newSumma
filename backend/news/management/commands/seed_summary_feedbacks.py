@@ -4,7 +4,9 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Count, Q, OuterRef, Subquery
 
-from news.models import NewsSummary, User, SummaryFeedback, NewsArticle
+from news.models import NewsArticle
+from summarizer.models import NewsSummary, SummaryFeedback
+from user.models import User
 
 logger = logging.getLogger(__name__)
 

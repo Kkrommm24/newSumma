@@ -1,7 +1,8 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
-from news.models import Comment, NewsSummary, ArticleStats
+from news.models import Comment, ArticleStats
+from summarizer.models import NewsSummary
 from news.serializers.serializers import CommentSerializer
 from news.services import comment_service
 from django.shortcuts import get_object_or_404

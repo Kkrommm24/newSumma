@@ -3,7 +3,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Value
 from django.contrib.postgres.search import SearchVector
-from news.models import NewsSummary, NewsArticle
+from news.models import NewsArticle
+from summarizer.models import NewsSummary
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)

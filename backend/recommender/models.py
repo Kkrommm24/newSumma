@@ -1,6 +1,4 @@
 from django.db import models
-from django.conf import settings
-from news.models import NewsSummary, NewsArticle, Category
 import uuid
 import logging
 from django.utils import timezone

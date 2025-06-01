@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
-from news.models import NewsSummary, NewsArticle
+from news.models import NewsArticle
+from summarizer.models import NewsSummary
 
 
 def get_summary_by_id(summary_id: str):

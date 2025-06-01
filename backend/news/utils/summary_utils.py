@@ -1,5 +1,6 @@
 import logging
-from news.models import NewsSummary, NewsArticle
+from news.models import NewsArticle
+from summarizer.models import NewsSummary
 
 logger = logging.getLogger(__name__)
 

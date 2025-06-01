@@ -21,7 +21,7 @@ class Command(BaseCommand):
         'seed_summary_feedbacks',
         'seed_user_preferences',
         'seed_search_histories',
-        'seed_comments',
+        # 'seed_comments',
     ]
 
     @transaction.atomic

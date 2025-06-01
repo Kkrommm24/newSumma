@@ -10,10 +10,9 @@ class TFIDFProcessor:
     def __init__(self):
         self.vectorizer = TfidfVectorizer(
             tokenizer=self._vietnamese_tokenize,
-            max_features=1000,
-            min_df=1,
-            max_df=1.0,
-            token_pattern=None
+            max_features=700,
+            token_pattern=None,
+            ngram_range=(1, 2)
         )
 
     def _vietnamese_tokenize(self, text):

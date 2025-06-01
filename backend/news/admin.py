@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import User, NewsSource, Category, NewsArticle, NewsArticleCategory, NewsSummary, UserSavedArticle, UserPreference, SummaryFeedback, SearchHistory, Comment, ArticleStats
+from news.models import NewsSource, Category, NewsArticle, NewsArticleCategory, Comment, ArticleStats
+from summarizer.models import NewsSummary, SummaryFeedback
+from user.models import SearchHistory
+from user.models import User, UserSavedArticle, UserPreference
 
 
 @admin.register(User)

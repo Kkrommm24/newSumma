@@ -1,9 +1,17 @@
+import multiprocessing
+import sys  # Thêm sys để kiểm tra platform
 import os
 from celery import Celery
-import multiprocessing
 
-# Đặt phương thức khởi tạo là 'spawn'
-multiprocessing.set_start_method('spawn', force=True)
+if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError as e:
+        # RuntimeError có thể xảy ra nếu context đã được sử dụng hoặc đã set và
+        # force=False
+        print(
+            f"Warning: Could not set multiprocessing start method in celery.py (early): {e}")
+# -----------------------------------------------------------------
 
 # Set the default Django settings module
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
