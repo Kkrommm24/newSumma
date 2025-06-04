@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from crawler.crawlers.vnexpress.tasks import crawl_vnexpress_articles
+from crawler.crawlers.crawl_vnexpress_controller.tasks import crawl_vnexpress_articles
 import logging
 
 logger = logging.getLogger(__name__)

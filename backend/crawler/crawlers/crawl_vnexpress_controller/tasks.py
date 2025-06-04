@@ -1,6 +1,6 @@
 import logging
 
-from crawler.crawlers.vnexpress.crawler import VNExpressCrawler
+from crawler.crawlers.crawl_vnexpress_controller.crawler import VNExpressCrawler
 from crawler.services.news_service import save_articles_with_categories
 from celery import shared_task
 
