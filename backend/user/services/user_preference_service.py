@@ -1,6 +1,8 @@
 import logging
 from user.models import UserPreference
 from django.db import transaction
+from django.utils import timezone
+from recommender.services.recommend_service import update_user_favorite_keywords_rankings
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,10 @@ def add_favorite_keywords(
                     update_fields=[
                         'favorite_keywords',
                         'updated_at'])
+                try:
+                    update_user_favorite_keywords_rankings(user_id=user_id)
+                except Exception as e_rank:
+                    logger.error(f"Error triggering summary favorite keywords ranking update for user {user_id} after adding keywords: {e_rank}", exc_info=True)
 
         return preference
 
@@ -91,6 +97,11 @@ def delete_favorite_keywords(
                     update_fields=[
                         'favorite_keywords',
                         'updated_at'])
+                # Trigger ranking update
+                try:
+                    update_user_favorite_keywords_rankings(user_id=user_id)
+                except Exception as e_rank:
+                    logger.error(f"Error triggering summary favorite keywords ranking update for user {user_id} after deleting keywords: {e_rank}", exc_info=True)
 
         return preference
 

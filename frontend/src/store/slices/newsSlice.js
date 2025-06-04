@@ -48,7 +48,8 @@ export const fetchNews = createAsyncThunk(
               userVote: item.user_vote,
               upvotes: item.upvotes || 0,
               downvotes: item.downvotes || 0,
-              comment_count: item.comment_count === undefined ? 0 : item.comment_count
+              comment_count: item.comment_count === undefined ? 0 : item.comment_count,
+              category_name: item.category_name || null
             };
           }
           return {
@@ -63,7 +64,8 @@ export const fetchNews = createAsyncThunk(
             userVote: item.user_vote,
             upvotes: item.upvotes || 0,
             downvotes: item.downvotes || 0,
-            comment_count: item.comment_count === undefined ? 0 : item.comment_count
+            comment_count: item.comment_count === undefined ? 0 : item.comment_count,
+            category_name: item.category_name || null
           };
         });
         
@@ -91,7 +93,8 @@ export const fetchNews = createAsyncThunk(
                     userVote: item.user_vote,
                     upvotes: item.upvotes || 0,
                     downvotes: item.downvotes || 0,
-                    comment_count: item.comment_count === undefined ? 0 : item.comment_count
+                    comment_count: item.comment_count === undefined ? 0 : item.comment_count,
+                    category_name: item.category_name || null
                 };
             }
             return {
@@ -106,7 +109,8 @@ export const fetchNews = createAsyncThunk(
                 userVote: item.user_vote,
                 upvotes: item.upvotes || 0,
                 downvotes: item.downvotes || 0,
-                comment_count: item.comment_count === undefined ? 0 : item.comment_count
+                comment_count: item.comment_count === undefined ? 0 : item.comment_count,
+                category_name: item.category_name || null
             };
         });
         

@@ -47,7 +47,8 @@ const NewsCard = ({
   onHideArticle,
   showRating = true,
   isTogglingBookmark = false,
-  onSuccessfulDownvote
+  onSuccessfulDownvote,
+  category_name
 }) => {
   const dispatch = useDispatch();
   const { message: messageApi } = App.useApp();
@@ -353,9 +354,18 @@ const NewsCard = ({
                 </h3>
               }
               description={
-                <p className="text-gray-600 text-xs mt-1 line-clamp-3">
-                  {summary || 'No summary available.'}
-                </p>
+                <>
+                  {category_name && (
+                    <div className="mb-1 text-left">
+                      <Text strong style={{ fontSize: '12px', color: '#4A5568' }}>
+                        {category_name}
+                      </Text>
+                    </div>
+                  )}
+                  <p className="text-gray-600 text-xs mt-1 line-clamp-3">
+                    {summary || 'No summary available.'}
+                  </p>
+                </>
               }
             />
             {publishedAt && (

@@ -2,15 +2,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from recommender.models import SummaryClickLog
-from news.models import ArticleStats
 from summarizer.models import NewsSummary
-from django.shortcuts import get_object_or_404
-from django.db.models import F
 
-from recommender.services.recommend_service import (
-    log_summary_view as log_summary_view_service,
-    handle_summary_click_for_ranking
+from recommender.recommenders.recommender_controller.recommender_controller import (
+    log_summary_view_interface,
+    track_source_click_interface
 )
 import logging
 
@@ -45,7 +41,7 @@ def log_summary_view_time(request):
     user_id = user.id if user else None
 
     try:
-        total_duration = log_summary_view_service(
+        total_duration = log_summary_view_interface(
             user_id=user_id,
             summary_id=summary_id,
             duration_seconds=duration_seconds
@@ -60,7 +56,9 @@ def log_summary_view_time(request):
         return Response({"error": "Summary not found"},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return Response({"error": "Failed to log view time due to a server error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(f"Failed to log view time for summary {summary_id}, user {user_id}: {e}", exc_info=True)
+        return Response({"error": "Failed to log view time due to a server error."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -75,30 +73,13 @@ def track_source_click(request):
     user_id_to_log = current_user.id if current_user else None
 
     try:
-        summary_object = get_object_or_404(
-            NewsSummary, id=summary_id_from_request)
-
-        SummaryClickLog.objects.create(
-            user_id=user_id_to_log,
-            summary_id=summary_object.id
+        service_response = track_source_click_interface(
+            user_id_to_log, 
+            summary_id_from_request
         )
 
-        if summary_object.article_id:
-            article_stats, created = ArticleStats.objects.get_or_create(
-                article_id=summary_object.article_id,
-                defaults={'view_count': 1}
-            )
-            if not created:
-                ArticleStats.objects.filter(
-                    article_id=summary_object.article_id).update(
-                    view_count=F('view_count') + 1)
-
-        # 3. Call service to process click for ranking updates
-        service_response = handle_summary_click_for_ranking(
-            user_id_to_log, summary_object.id)
-
         return Response({
-            "message": "Click tracked and processed for ranking.",
+            "message": "Click tracked and processed.",
             "details": service_response.get("message")
         }, status=status.HTTP_201_CREATED)
 
@@ -106,5 +87,6 @@ def track_source_click(request):
         return Response({"error": "Summary not found"},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
+        logger.error(f"Failed to track click for summary {summary_id_from_request}, user {user_id_to_log}: {e}", exc_info=True)
         return Response({"error": "Failed to track click due to a server error."},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)

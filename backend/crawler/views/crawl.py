@@ -2,8 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
-from crawler.crawlers.baomoi.tasks import crawl_baomoi_articles
-from crawler.crawlers.vnexpress.tasks import crawl_vnexpress_articles
+from crawler.crawlers.crawl_baomoi_controller.tasks import crawl_baomoi_articles
+from crawler.crawlers.crawl_vnexpress_controller.tasks import crawl_vnexpress_articles
 import logging
 
 logger = logging.getLogger(__name__)

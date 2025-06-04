@@ -1,22 +1,61 @@
-from news.models import NewsArticle, NewsArticleCategory
+from news.models import NewsArticle, NewsArticleCategory, ArticleStats
 from user.models import UserPreference
 from summarizer.models import NewsSummary
 from user.models import SearchHistory
-from recommender.models import SummaryViewLog, SummaryRanking
+from recommender.models import SummaryViewLog, SummaryRanking, SummaryClickLog
 from django.contrib.postgres.search import SearchQuery, SearchRank
-from django.db.models import F
+from django.db.models import F, Sum as DbSum
 import logging
 from functools import reduce
 import operator
 from django.utils import timezone
 import datetime
-from django.db.models import Sum
 from django.shortcuts import get_object_or_404
+from decimal import Decimal
+import math
+from recommender.recommenders.recommender_controller import recommender_controller as recommender_logic
 
 logger = logging.getLogger(__name__)
 SEARCH_HISTORY_LIMIT = 5
 MIN_RANK_THRESHOLD = 0.05
-VIEW_DURATION_THRESHOLD = 3
+VIEW_DURATION_THRESHOLD = 3.0
+CATEGORY_WEIGHT = 0.5
+SEARCH_HISTORY_WEIGHT = 0.3
+FAVORITE_KEYWORDS_WEIGHT = 0.2
+TARGET_ENGAGEMENT_FOR_MAX_CATEGORY_SCORE = Decimal('20.0') 
+DURATION_ENGAGEMENT_WEIGHT = Decimal('0.1')
+CLICK_ENGAGEMENT_WEIGHT = Decimal('1.0')
+
+LOG_CATEGORY_NORMALIZATION_DIVISOR = Decimal(str(math.log1p(float(TARGET_ENGAGEMENT_FOR_MAX_CATEGORY_SCORE))))
+if LOG_CATEGORY_NORMALIZATION_DIVISOR == Decimal('0'):
+    LOG_CATEGORY_NORMALIZATION_DIVISOR = Decimal('1.0')
+
+
+def _calculate_fts_score_for_summary(summary_obj, keywords_list: list[str], search_config='vietnamese') -> float:
+    if not keywords_list or not summary_obj or not summary_obj.search_vector:
+        return 0.0
+
+    valid_keywords = [kw for kw in keywords_list if kw and isinstance(kw, str)]
+    if not valid_keywords:
+        return 0.0
+
+    fts_queries = [
+        SearchQuery(kw, search_type='plain', config=search_config)
+        for kw in valid_keywords
+    ]
+
+    if not fts_queries:
+        return 0.0
+
+    combined_fts_query = reduce(operator.or_, fts_queries)
+
+    summary_rank_data = NewsSummary.objects.filter(pk=summary_obj.pk).annotate(
+        rank=SearchRank(F('search_vector'), combined_fts_query)
+    ).values('rank').first()
+
+    if summary_rank_data and summary_rank_data['rank'] is not None:
+        return float(summary_rank_data['rank'])
+    return 0.0
 
 
 def _update_summary_ranking(summary_id, user_id, category_id=None):
@@ -36,24 +75,55 @@ def _update_summary_ranking(summary_id, user_id, category_id=None):
         )
 
         if category_id:
-            user_category_views = SummaryViewLog.objects.filter(
-                user_id=user_id,
-                summary_id__in=NewsSummary.objects.filter(
-                    article_id__in=NewsArticleCategory.objects.filter(
-                        category_id=category_id
-                    ).values_list('article_id', flat=True)
-                ).values_list('id', flat=True),
-                duration_seconds__gte=VIEW_DURATION_THRESHOLD
-            ).count()
-            ranking.category_score = min(user_category_views / 10, 1.0)
+            summaries_in_category_ids = NewsSummary.objects.filter(
+                article_id__in=NewsArticleCategory.objects.filter(
+                    category_id=category_id
+                ).values_list('article_id', flat=True)
+            ).values_list('id', flat=True)
 
-        ranking.calculate_total_score()
+            qualified_view_logs = SummaryViewLog.objects.filter(
+                user_id=user_id,
+                summary_id__in=summaries_in_category_ids,
+                duration_seconds__gte=VIEW_DURATION_THRESHOLD
+            )
+            sum_of_qualified_view_durations = qualified_view_logs.aggregate(
+                total_duration=DbSum('duration_seconds')
+            )['total_duration'] or Decimal('0.0')
+
+            user_category_clicks = SummaryClickLog.objects.filter(
+                user_id=user_id,
+                summary_id__in=summaries_in_category_ids
+            ).count()
+            
+            total_engagement_value = recommender_logic.calculate_category_engagement_value(
+                sum_of_qualified_view_durations,
+                user_category_clicks,
+                DURATION_ENGAGEMENT_WEIGHT,
+                CLICK_ENGAGEMENT_WEIGHT
+            )
+            
+            normalized_score = recommender_logic.calculate_normalized_category_score(
+                total_engagement_value,
+                LOG_CATEGORY_NORMALIZATION_DIVISOR
+            )
+            ranking.category_score = normalized_score
+
+        ranking.total_score = recommender_logic.calculate_total_score_from_components(
+            ranking.category_score,
+            ranking.search_history_score,
+            ranking.favorite_keywords_score,
+            CATEGORY_WEIGHT,
+            SEARCH_HISTORY_WEIGHT,
+            FAVORITE_KEYWORDS_WEIGHT
+        )
+        ranking.save()
         return ranking
     except Exception as e:
+        logger.error(f"Error updating summary ranking for summary {summary_id}, user {user_id}: {e}", exc_info=True)
         return None
 
 
-def _trigger_category_ranking_update_for_related_items(
+def update_user_based_category_rankings(
         user_id, interacted_summary_id):
     if not user_id:
         return
@@ -114,11 +184,20 @@ def log_summary_view(user_id, summary_id, duration_seconds):
             user_id=actual_user_id,
             summary_id=summary.id
         ).aggregate(
-            total_duration=Sum('duration_seconds')
-        )['total_duration'] or 0
+            total_duration=DbSum('duration_seconds')
+        )['total_duration'] or Decimal('0.0')
 
         if duration_seconds >= VIEW_DURATION_THRESHOLD and actual_user_id:
-            _trigger_category_ranking_update_for_related_items(
+            article_category_relation = NewsArticleCategory.objects.filter(
+                article_id=summary.article_id
+            ).first()
+            if article_category_relation and article_category_relation.category_id:
+                _update_summary_ranking(
+                    summary_id=summary.id,
+                    user_id=actual_user_id,
+                    category_id=article_category_relation.category_id
+                )
+            update_user_based_category_rankings(
                 actual_user_id, summary.id)
 
         return total_duration_for_summary
@@ -135,7 +214,16 @@ def handle_summary_click_for_ranking(user_id, summary_id):
         summary = get_object_or_404(NewsSummary, id=summary_id)
 
         if user_id:  # Only update ranking if user is authenticated
-            _trigger_category_ranking_update_for_related_items(
+            article_category_relation = NewsArticleCategory.objects.filter(
+                article_id=summary.article_id
+            ).first()
+            if article_category_relation and article_category_relation.category_id:
+                _update_summary_ranking(
+                    summary_id=summary.id,
+                    user_id=user_id,
+                    category_id=article_category_relation.category_id
+                )
+            update_user_based_category_rankings(
                 user_id, summary.id)
             return {"message": "Click processed for ranking update."}
         else:
@@ -145,6 +233,41 @@ def handle_summary_click_for_ranking(user_id, summary_id):
     except NewsSummary.DoesNotExist:
         raise
     except Exception as e:
+        raise
+
+
+def process_summary_click_service(user_id, summary_id_from_request):
+    try:
+        summary_object = get_object_or_404(NewsSummary, id=summary_id_from_request)
+
+        SummaryClickLog.objects.create(
+            user_id=user_id, # user_id từ request (đã được xác thực hoặc None)
+            summary_id=summary_object.id
+        )
+
+        if summary_object.article_id:
+            article_stats, created = ArticleStats.objects.get_or_create(
+                article_id=summary_object.article_id,
+                defaults={'view_count': 1}
+            )
+            if not created:
+                ArticleStats.objects.filter(
+                    article_id=summary_object.article_id).update(
+                    view_count=F('view_count') + 1)
+        
+        ranking_response = handle_summary_click_for_ranking(user_id, summary_object.id)
+
+        return {
+            "message": "Click tracked, stats updated, and ranking processed successfully.",
+            "details": ranking_response.get("message", "Ranking update processed.")
+        }
+
+    except NewsSummary.DoesNotExist:
+        # Exception này sẽ được bắt ở view hoặc interface layer cao hơn nếu cần
+        raise 
+    except Exception as e:
+        logger.error(f"Error processing summary click for summary {summary_id_from_request}, user {user_id}: {e}", exc_info=True)
+        # Raise lại để lớp gọi có thể xử lý (ví dụ: trả về 500 error)
         raise
 
 
@@ -160,16 +283,24 @@ def get_recommendations_for_user(
         }
 
     try:
-        # Hoàn lại cách query NewsSummary ban đầu, không dùng
-        # select_related('article') dựa trên FK không tồn tại
+        search_history_keywords = list(SearchHistory.objects.filter(
+            user_id=user_id,
+            created_at__gte=timezone.now() - datetime.timedelta(days=7)
+        ).values_list('query', flat=True).distinct())
+
+        favorite_keywords_data = []
+        try:
+            user_pref = UserPreference.objects.get(user_id=user_id)
+            if user_pref.favorite_keywords and isinstance(user_pref.favorite_keywords, list):
+                favorite_keywords_data = [kw for kw in user_pref.favorite_keywords if kw and isinstance(kw, str)]
+        except UserPreference.DoesNotExist:
+            pass
+
         summaries_qs = NewsSummary.objects.all()
 
         if current_summary_id:
             summaries_qs = summaries_qs.exclude(id=current_summary_id)
 
-        # Lấy tất cả ID summary để query ranking (nếu summaries_qs lớn, có thể tối ưu sau)
-        # Tuy nhiên, logic xếp hạng/tạo ranking mới cần tất cả summaries tiềm
-        # năng
         all_summary_ids_for_ranking = summaries_qs.values_list('id', flat=True)
 
         user_rankings = SummaryRanking.objects.filter(
@@ -179,27 +310,42 @@ def get_recommendations_for_user(
         rankings_dict = {str(r.summary_id): r for r in user_rankings}
 
         summaries_with_score = []
-        for summary in summaries_qs:  # Lặp qua tất cả summaries tiềm năng để tính/lấy điểm
+        for summary in summaries_qs:
             ranking = rankings_dict.get(str(summary.id))
 
             if ranking:
                 summary.score = ranking.total_score
             else:
                 try:
+                    category_score = _calculate_initial_category_score(user_id, summary.article_id)
+                    
+                    sh_score = _calculate_fts_score_for_summary(summary, search_history_keywords)
+                    
+                    fk_score = _calculate_fts_score_for_summary(summary, favorite_keywords_data)
+
+                    calculated_total_score = recommender_logic.calculate_total_score_from_components(
+                        category_score,
+                        sh_score,
+                        fk_score,
+                        CATEGORY_WEIGHT,
+                        SEARCH_HISTORY_WEIGHT,
+                        FAVORITE_KEYWORDS_WEIGHT
+                    )
+
                     new_ranking = SummaryRanking.objects.create(
                         summary_id=summary.id,
                         user_id=user_id,
-                        category_score=0.0,
-                        search_history_score=0.0,
-                        favorite_keywords_score=0.0,
-                        total_score=0.01  # Điểm cơ bản
+                        category_score=category_score,
+                        search_history_score=sh_score,
+                        favorite_keywords_score=fk_score,
+                        total_score=calculated_total_score
                     )
                     summary.score = new_ranking.total_score
                 except Exception as e_create_ranking:
                     logger.error(
-                        f"Error creating ranking for summary {summary.id}: {e_create_ranking}",
+                        f"Error creating or calculating ranking for summary {summary.id}: {e_create_ranking}",
                         exc_info=True)
-                    summary.score = 0
+                    summary.score = 0 # Default to 0 if error occurs
 
             summaries_with_score.append(summary)
 
@@ -237,100 +383,137 @@ def get_recommendations_for_user(
         return [], {}, {'type': 'error', 'message': str(e)}
 
 
-def update_summary_rankings(user_id=None):
+def update_user_search_history_rankings(user_id):
+    if not user_id:
+        logger.warning("User ID not provided for search history ranking update.")
+        return
+
     try:
+        search_history_keywords = list(SearchHistory.objects.filter(
+            user_id=user_id,
+            created_at__gte=timezone.now() - datetime.timedelta(days=7)
+        ).values_list('query', flat=True).distinct())
+
         summaries = NewsSummary.objects.all()
-
         for summary in summaries:
-            try:
-                ranking, created = SummaryRanking.objects.get_or_create(
-                    summary_id=summary.id,
-                    user_id=user_id,
-                    defaults={
-                        'category_score': 0.0,
-                        'search_history_score': 0.0,
-                        'favorite_keywords_score': 0.0,
-                        'total_score': 0.0
-                    }
+            ranking, created = SummaryRanking.objects.get_or_create(
+                summary_id=summary.id,
+                user_id=user_id,
+                defaults={
+                    'category_score': 0.0,
+                    'search_history_score': 0.0,
+                    'favorite_keywords_score': 0.0,
+                    'total_score': 0.0
+                }
+            )
+            
+            new_sh_score = _calculate_fts_score_for_summary(summary, search_history_keywords)
+            
+            if ranking.search_history_score != new_sh_score:
+                ranking.search_history_score = new_sh_score
+                ranking.total_score = recommender_logic.calculate_total_score_from_components(
+                    ranking.category_score,
+                    ranking.search_history_score,
+                    ranking.favorite_keywords_score,
+                    CATEGORY_WEIGHT,
+                    SEARCH_HISTORY_WEIGHT,
+                    FAVORITE_KEYWORDS_WEIGHT
                 )
-
-                category_score = 0.0
-                article_categories = NewsArticleCategory.objects.filter(
-                    article_id=summary.article_id)
-                if article_categories.exists():
-                    for category in article_categories:
-                        category_views = SummaryViewLog.objects.filter(
-                            summary_id__in=NewsSummary.objects.filter(
-                                article_id__in=NewsArticleCategory.objects.filter(
-                                    category_id=category.category_id
-                                ).values_list('article_id', flat=True)
-                            ).values_list('id', flat=True),
-                            duration_seconds__gte=VIEW_DURATION_THRESHOLD
-                        ).count()
-                        category_score = max(
-                            category_score, min(
-                                category_views / 10, 1.0))
-
-                search_history_score = 0.0
-                if user_id:
-                    search_history_keywords = SearchHistory.objects.filter(
-                        user_id=user_id,
-                        created_at__gte=timezone.now() -
-                        datetime.timedelta(
-                            days=7)).values_list(
-                        'query',
-                        flat=True)
-
-                    if search_history_keywords:
-                        search_config = 'vietnamese'
-                        fts_queries = [
-                            SearchQuery(
-                                kw,
-                                search_type='plain',
-                                config=search_config) for kw in search_history_keywords if kw]
-                        if fts_queries:
-                            combined_fts_query = reduce(
-                                operator.or_, fts_queries)
-
-                            summary_rank_obj = NewsSummary.objects.filter(pk=summary.pk).annotate(
-                                rank=SearchRank(F('search_vector'), combined_fts_query)
-                            ).values('rank').first()
-
-                            if summary_rank_obj and summary_rank_obj['rank'] is not None:
-                                search_history_score = summary_rank_obj['rank']
-
-                favorite_keywords_score = 0.0
-                if user_id:
-                    try:
-                        user_pref = UserPreference.objects.get(user_id=user_id)
-                        if user_pref.favorite_keywords:
-                            fav_kws = user_pref.favorite_keywords
-                            search_config = 'vietnamese'
-                            fts_queries = [
-                                SearchQuery(
-                                    kw,
-                                    search_type='plain',
-                                    config=search_config) for kw in fav_kws if kw]
-                            if fts_queries:
-                                combined_fts_query = reduce(
-                                    operator.or_, fts_queries)
-                                summary_rank_obj = NewsSummary.objects.filter(pk=summary.pk).annotate(
-                                    rank=SearchRank(F('search_vector'), combined_fts_query)
-                                ).values('rank').first()
-
-                                if summary_rank_obj and summary_rank_obj['rank'] is not None:
-                                    favorite_keywords_score = summary_rank_obj['rank']
-                    except UserPreference.DoesNotExist:
-                        pass
-
-                ranking.category_score = category_score
-                ranking.search_history_score = search_history_score
-                ranking.favorite_keywords_score = favorite_keywords_score
-                ranking.calculate_total_score()
                 ranking.save()
 
-            except Exception as e:
-                continue
+        logger.info(f"Finished updating search history based rankings for user {user_id}.")
+    except Exception as e:
+        logger.error(f"Error updating search history rankings for user {user_id}: {e}", exc_info=True)
+
+
+def update_user_favorite_keywords_rankings(user_id):
+    if not user_id:
+        logger.warning("User ID not provided for favorite keywords ranking update.")
+        return
+
+    try:
+        favorite_keywords_data = []
+        try:
+            user_pref = UserPreference.objects.get(user_id=user_id)
+            if user_pref.favorite_keywords and isinstance(user_pref.favorite_keywords, list):
+                favorite_keywords_data = [kw for kw in user_pref.favorite_keywords if kw and isinstance(kw, str)]
+        except UserPreference.DoesNotExist:
+            pass
+        
+        summaries = NewsSummary.objects.all()
+        for summary in summaries:
+            ranking, created = SummaryRanking.objects.get_or_create(
+                summary_id=summary.id,
+                user_id=user_id,
+                defaults={
+                    'category_score': 0.0,
+                    'search_history_score': 0.0,
+                    'favorite_keywords_score': 0.0,
+                    'total_score': 0.0
+                }
+            )
+
+            new_fk_score = _calculate_fts_score_for_summary(summary, favorite_keywords_data)
+
+            if ranking.favorite_keywords_score != new_fk_score:
+                ranking.favorite_keywords_score = new_fk_score
+                ranking.total_score = recommender_logic.calculate_total_score_from_components(
+                    ranking.category_score,
+                    ranking.search_history_score,
+                    ranking.favorite_keywords_score,
+                    CATEGORY_WEIGHT,
+                    SEARCH_HISTORY_WEIGHT,
+                    FAVORITE_KEYWORDS_WEIGHT
+                )
+                ranking.save()
+        
+        logger.info(f"Finished updating favorite keywords based rankings for user {user_id}.")
+    except Exception as e:
+        logger.error(f"Error updating favorite keywords rankings for user {user_id}: {e}", exc_info=True)
+
+
+def _calculate_initial_category_score(user_id, summary_article_id):
+    if not user_id or not summary_article_id:
+        return 0.0
+    try:
+        article_category_relation = NewsArticleCategory.objects.filter(
+            article_id=summary_article_id).first()
+        if article_category_relation and article_category_relation.category_id:
+            category_id = article_category_relation.category_id
+            
+            summaries_in_category_ids = NewsSummary.objects.filter(
+                article_id__in=NewsArticleCategory.objects.filter(
+                    category_id=category_id
+                ).values_list('article_id', flat=True)
+            ).values_list('id', flat=True)
+
+            qualified_view_logs = SummaryViewLog.objects.filter(
+                user_id=user_id,
+                summary_id__in=summaries_in_category_ids,
+                duration_seconds__gte=VIEW_DURATION_THRESHOLD
+            )
+            sum_of_qualified_view_durations = qualified_view_logs.aggregate(
+                total_duration=DbSum('duration_seconds')
+            )['total_duration'] or Decimal('0.0')
+
+            user_category_clicks = SummaryClickLog.objects.filter(
+                user_id=user_id,
+                summary_id__in=summaries_in_category_ids
+            ).count()
+            
+            total_engagement_value = recommender_logic.calculate_category_engagement_value(
+                sum_of_qualified_view_durations,
+                user_category_clicks,
+                DURATION_ENGAGEMENT_WEIGHT,
+                CLICK_ENGAGEMENT_WEIGHT
+            )
+            
+            initial_category_score = recommender_logic.calculate_normalized_category_score(
+                total_engagement_value,
+                LOG_CATEGORY_NORMALIZATION_DIVISOR
+            )
+            return float(initial_category_score)
 
     except Exception as e:
-        raise
+        logger.error(f"Error calculating initial category score for article {summary_article_id}, user {user_id}: {e}", exc_info=True)
+    return 0.0
