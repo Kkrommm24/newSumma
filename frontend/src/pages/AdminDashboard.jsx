@@ -381,7 +381,7 @@ const AdminDashboard = () => {
     setDetailLoading(true);
     setDetailError(null);
     try {
-      const response = await axiosInstance.get(`/news/summaries/${summary.id}/`);
+      const response = await axiosInstance.get(`/summarizer/summaries/${summary.id}/`);
       setSelectedArticle(response.data);
     } catch (error) {
       setDetailError('Không thể tải chi tiết tóm tắt');

@@ -5,6 +5,7 @@ from user.models import UserPreference, User, UserSavedArticle, SearchHistory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.password_validation import validate_password, MinimumLengthValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
+from user.services import registration_service 
 
 User = get_user_model()
 
@@ -187,15 +188,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        if User.objects.filter(email=value, is_active=True).exists():
             raise serializers.ValidationError(
-                _("A user with that email already exists."))
+                _("An active user with that email already exists."))
         return value
 
     def validate_username(self, value):
-        if User.objects.filter(username=value).exists():
+        if User.objects.filter(username=value, is_active=True).exists():
             raise serializers.ValidationError(
-                _("A user with that username already exists."))
+                _("An active user with that username already exists."))
         return value
 
     def validate(self, data):
@@ -211,12 +212,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
-        )
-        return user
+        try:
+            user = registration_service.register_user(validated_data.copy())
+            return user
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
 
 
 class RequestPasswordResetSerializer(serializers.Serializer):

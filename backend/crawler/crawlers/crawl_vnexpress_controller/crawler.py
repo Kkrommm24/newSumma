@@ -144,9 +144,33 @@ class VNExpressCrawler:
     def _get_article_list(self, driver, limit):
         try:
             articles = driver.find_elements(By.XPATH, '//article')
+
+            # Cuộn trang để tải thêm bài viết nếu cần
+            attempts = 0
+            while len(articles) < limit and attempts < 5:
+                logger.info(
+                    f"Số bài viết hiện tại ({len(articles)}) ít hơn giới hạn ({limit}). Đang cuộn trang...")
+                previous_count = len(articles)
+                driver.execute_script(
+                    "window.scrollTo(0, document.body.scrollHeight);")
+                # Đợi một chút để các bài viết mới được tải
+                time.sleep(3)
+
+                articles = driver.find_elements(By.XPATH, '//article')
+
+                if len(articles) == previous_count:
+                    # Nếu không có bài viết mới nào được tải, dừng lại
+                    logger.info(
+                        "Không tìm thấy bài viết mới sau khi cuộn, dừng lại.")
+                    break
+
+                attempts += 1
+
+            logger.info(
+                f"Tìm thấy tổng cộng {len(articles)} bài viết sau khi cuộn trang.")
             return articles
         except Exception as e:
-            logger.error(f"❌ Lỗi khi tìm bài viết.")
+            logger.error(f"❌ Lỗi khi tìm bài viết trên VNExpress: {e}")
             return []
 
     def _scroll_to_article(self, driver, article):

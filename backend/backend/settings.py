@@ -205,10 +205,10 @@ CELERY_TASK_ROUTES = {
     'summarizer.summarizers.llama.tasks.generate_article_summaries': {
         'queue': 'gpu_crawler_queue',
     },
-    'crawler.crawlers.baomoi.tasks.crawl_baomoi_articles': {
+    'crawler.crawlers.crawl_baomoi_controller.tasks.crawl_baomoi_articles': {
         'queue': 'gpu_crawler_queue',
     },
-    'crawler.crawlers.vnexpress.tasks.crawl_vnexpress_articles': {
+    'crawler.crawlers.crawl_vnexpress_controller.tasks.crawl_vnexpress_articles': {
         'queue': 'gpu_crawler_queue',
     },
     'user.tasks.send_password_reset_email': {
