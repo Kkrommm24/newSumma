@@ -39,14 +39,17 @@ class CommentListCreateView(generics.ListCreateAPIView):
 
             # Gọi interface từ news_controller để cập nhật stats
             if comment_instance and summary.article_id:
-                news_controller.handle_new_comment_stats_interface(summary.article_id)
-        
-        except NewsSummary.DoesNotExist: # Bắt lỗi nếu get_object_or_404 thất bại
-             raise NotFound(
+                news_controller.handle_new_comment_stats_interface(
+                    summary.article_id)
+
+        except NewsSummary.DoesNotExist:  # Bắt lỗi nếu get_object_or_404 thất bại
+            raise NotFound(
                 detail=f"Không tìm thấy tóm tắt với ID: {summary_id} khi tạo bình luận.",
                 code="summary_not_found_on_create")
         except Exception as e:
-            logger.error(f"Lỗi khi tạo bình luận cho summary {summary_id}: {e}", exc_info=True)
+            logger.error(
+                f"Lỗi khi tạo bình luận cho summary {summary_id}: {e}",
+                exc_info=True)
             raise
 
 

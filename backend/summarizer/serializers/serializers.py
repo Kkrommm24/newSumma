@@ -82,9 +82,11 @@ class SummarySerializer(serializers.ModelSerializer):
 
         if article_instance:
             try:
-                article_category_relation = NewsArticleCategory.objects.filter(article_id=article_instance.id).first()
+                article_category_relation = NewsArticleCategory.objects.filter(
+                    article_id=article_instance.id).first()
                 if article_category_relation:
-                    category = Category.objects.get(id=article_category_relation.category_id)
+                    category = Category.objects.get(
+                        id=article_category_relation.category_id)
                     return category.name
             except (NewsArticleCategory.DoesNotExist, Category.DoesNotExist):
                 return None

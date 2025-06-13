@@ -2,16 +2,19 @@ import math
 from decimal import Decimal
 from recommender.services import recommend_service
 
+
 def calculate_softmax_components_for_category(
-all_category_interactions_data: list[dict],
+    all_category_interactions_data: list[dict],
     current_category_id: str,
-    current_category_duration: Decimal, # d_c
-    current_category_clicks: int # c_c
+    current_category_duration: Decimal,  # d_c
+    current_category_clicks: int  # c_c
 ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal, Decimal]:
     if not all_category_interactions_data:
-        return Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
+        return Decimal('0.0'), Decimal('0.0'), Decimal(
+            '0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
 
-    all_durations = [item['duration'] for item in all_category_interactions_data]
+    all_durations = [item['duration']
+                     for item in all_category_interactions_data]
     all_clicks = [item['clicks'] for item in all_category_interactions_data]
 
     max_d_overall = max(all_durations) if all_durations else Decimal('0.0')
@@ -26,31 +29,41 @@ all_category_interactions_data: list[dict],
         for item_clicks in all_clicks:
             exp_c_values.append(math.exp(float(item_clicks - max_c_overall)))
     except OverflowError:
-        return Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
+        return Decimal('0.0'), Decimal('0.0'), Decimal(
+            '0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
 
     sum_exp_d_all = Decimal(str(sum(exp_d_values)))
     sum_exp_c_all = Decimal(str(sum(exp_c_values)))
 
     try:
-        exp_d_current = Decimal(str(math.exp(float(current_category_duration - max_d_overall))))
-        exp_c_current = Decimal(str(math.exp(float(Decimal(current_category_clicks) - max_c_overall))))
+        exp_d_current = Decimal(
+            str(math.exp(float(current_category_duration - max_d_overall))))
+        exp_c_current = Decimal(
+            str(math.exp(float(Decimal(current_category_clicks) - max_c_overall))))
     except OverflowError:
-        return Decimal('0.0'), Decimal('0.0'), sum_exp_d_all, sum_exp_c_all, Decimal('0.0'), Decimal('0.0')
+        return Decimal('0.0'), Decimal(
+            '0.0'), sum_exp_d_all, sum_exp_c_all, Decimal('0.0'), Decimal('0.0')
 
     return max_d_overall, max_c_overall, sum_exp_d_all, sum_exp_c_all, exp_d_current, exp_c_current
 
 
 def finalize_softmax_category_score(
-    sum_exp_d_all: Decimal, 
-    sum_exp_c_all: Decimal, 
-    exp_d_current: Decimal, 
+    sum_exp_d_all: Decimal,
+    sum_exp_c_all: Decimal,
+    exp_d_current: Decimal,
     exp_c_current: Decimal
 ) -> float:
-    softmax_duration_score = (exp_d_current / sum_exp_d_all) if sum_exp_d_all > Decimal('0') else Decimal('0.0')
-    softmax_click_score = (exp_c_current / sum_exp_c_all) if sum_exp_c_all > Decimal('0') else Decimal('0.0')
-    
-    final_category_score = float(Decimal('0.5') * (softmax_duration_score + softmax_click_score))
+    softmax_duration_score = (
+        exp_d_current /
+        sum_exp_d_all) if sum_exp_d_all > Decimal('0') else Decimal('0.0')
+    softmax_click_score = (
+        exp_c_current /
+        sum_exp_c_all) if sum_exp_c_all > Decimal('0') else Decimal('0.0')
+
+    final_category_score = float(
+        Decimal('0.5') * (softmax_duration_score + softmax_click_score))
     return final_category_score
+
 
 def calculate_total_score_from_components(
     category_score: float,
@@ -65,7 +78,12 @@ def calculate_total_score_from_components(
                   (favorite_keywords_score * favorite_keywords_weight)
     return total_score
 
-def get_recommendations_interface(user_id, current_summary_id=None, limit=10, offset=0):
+
+def get_recommendations_interface(
+        user_id,
+        current_summary_id=None,
+        limit=10,
+        offset=0):
     return recommend_service.get_recommendations_for_user(
         user_id,
         current_summary_id,

@@ -31,7 +31,7 @@ urlpatterns = [
         'summaries/<uuid:id>/',
         SummaryDetailView.as_view(),
         name='summary-detail'),
-    
+
     path(
         'articles/<uuid:article_id>/summary/',
         ArticleSummaryView.as_view(),

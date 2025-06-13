@@ -5,7 +5,7 @@ from user.models import UserPreference, User, UserSavedArticle, SearchHistory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.password_validation import validate_password, MinimumLengthValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
-from user.services import registration_service 
+from user.services import registration_service
 
 User = get_user_model()
 

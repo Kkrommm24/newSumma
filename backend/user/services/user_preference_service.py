@@ -54,7 +54,9 @@ def add_favorite_keywords(
                 try:
                     update_user_favorite_keywords_rankings(user_id=user_id)
                 except Exception as e_rank:
-                    logger.error(f"Error triggering summary favorite keywords ranking update for user {user_id} after adding keywords: {e_rank}", exc_info=True)
+                    logger.error(
+                        f"Error triggering summary favorite keywords ranking update for user {user_id} after adding keywords: {e_rank}",
+                        exc_info=True)
 
         return preference
 
@@ -101,7 +103,9 @@ def delete_favorite_keywords(
                 try:
                     update_user_favorite_keywords_rankings(user_id=user_id)
                 except Exception as e_rank:
-                    logger.error(f"Error triggering summary favorite keywords ranking update for user {user_id} after deleting keywords: {e_rank}", exc_info=True)
+                    logger.error(
+                        f"Error triggering summary favorite keywords ranking update for user {user_id} after deleting keywords: {e_rank}",
+                        exc_info=True)
 
         return preference
 

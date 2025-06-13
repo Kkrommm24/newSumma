@@ -24,7 +24,8 @@ class Command(BaseCommand):
             name='Crawl vnexpress every 10 minutes',
             interval=schedule,
             task='crawler.crawlers.crawl_vnexpress_controller.tasks.crawl_vnexpress_articles',
-            args=json.dumps([10]),
+            args=json.dumps(
+                [10]),
         )
 
         self.stdout.write(self.style.SUCCESS(

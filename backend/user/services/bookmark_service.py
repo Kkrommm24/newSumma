@@ -4,6 +4,7 @@ from user.models import UserSavedArticle
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from django.db.models import F
+from typing import List
 
 
 class BookmarkException(APIException):
@@ -28,6 +29,53 @@ class NotBookmarkedException(BookmarkException):
     status_code = status.HTTP_404_NOT_FOUND
     default_detail = 'Bài viết chưa được bookmark.'
     default_code = 'not_bookmarked'
+
+
+class BookmarkService:
+    @staticmethod
+    def check_article_exists(article_id: str) -> bool:
+        return NewsArticle.objects.filter(id=article_id).exists()
+
+    @staticmethod
+    def check_bookmark_exists(user_id: str, article_id: str) -> bool:
+        return UserSavedArticle.objects.filter(
+            user_id=user_id,
+            article_id=article_id).exists()
+
+    @staticmethod
+    def create_bookmark(user_id: str, article_id: str) -> UserSavedArticle:
+        return UserSavedArticle.objects.create(
+            user_id=user_id, article_id=article_id)
+
+    @staticmethod
+    def update_article_stats(article_id: str):
+        stats, created = ArticleStats.objects.get_or_create(
+            article_id=article_id,
+            defaults={'save_count': 1}
+        )
+        if not created:
+            ArticleStats.objects.filter(
+                article_id=article_id).update(
+                save_count=F('save_count') + 1)
+
+    @staticmethod
+    def get_bookmark(user_id: str, article_id: str) -> UserSavedArticle:
+        return UserSavedArticle.objects.get(
+            user_id=user_id, article_id=article_id)
+
+    @staticmethod
+    def delete_bookmark(bookmark: UserSavedArticle):
+        bookmark.delete()
+
+    @staticmethod
+    def decrease_article_stats(article_id: str):
+        ArticleStats.objects.filter(
+            article_id=article_id).update(
+            save_count=F('save_count') - 1)
+
+    @staticmethod
+    def get_user_bookmarks(user_id: str) -> List[UserSavedArticle]:
+        return UserSavedArticle.objects.filter(user_id=user_id)
 
 
 def add_bookmark(user_id: str, article_id: str):
