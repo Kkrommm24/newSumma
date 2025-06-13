@@ -43,7 +43,7 @@ def add_user_search_history(user_id, query: str) -> SearchHistory:
                 update_user_search_history_rankings(user_id=user_id)
             except Exception as e_rank:
                 logger.error(f"Error triggering summary search history ranking update for user {user_id}: {e_rank}", exc_info=True)
-        
+
         return history_entry
     except Exception as e:
         raise SearchHistoryException(f"Lỗi khi lưu lịch sử tìm kiếm: {str(e)}")
