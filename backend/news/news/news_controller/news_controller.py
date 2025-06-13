@@ -1,7 +1,8 @@
 from news.services import comment_service
-from summarizer.models import NewsSummary # Cần cho get_comments_interface để check summary tồn tại
-from django.shortcuts import get_object_or_404 # Cần cho get_comments_interface
-from rest_framework.exceptions import NotFound # Cần cho get_comments_interface
+# Cần cho get_comments_interface để check summary tồn tại
+from summarizer.models import NewsSummary
+from django.shortcuts import get_object_or_404  # Cần cho get_comments_interface
+from rest_framework.exceptions import NotFound  # Cần cho get_comments_interface
 
 
 def get_comments_interface(summary_id: str):
@@ -16,7 +17,7 @@ def get_comments_interface(summary_id: str):
 
 def handle_new_comment_stats_interface(article_id: str):
     if not article_id:
-        return 
+        return
     comment_service.update_stats_for_new_comment(article_id)
 
 

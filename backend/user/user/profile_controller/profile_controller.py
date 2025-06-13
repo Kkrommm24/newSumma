@@ -1,28 +1,20 @@
-from user.services import profile_service
-import logging
+from user.services.profile_service import ProfileService
+from typing import Dict, Optional, Any
 
-logger = logging.getLogger(__name__)
 
-def get_user_profile_interface(user_id):
-    try:
-        return profile_service.get_user_profile(user_id)
-    except Exception as e:
-        logger.error(f"ProfileController: Error in get_user_profile for user_id {user_id}: {e}", exc_info=True)
-        raise
+class ProfileController:
+    @staticmethod
+    def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
+        return ProfileService.get_user_profile(user_id)
 
-def update_user_profile_interface(user_id, validated_data, avatar_file=None):
-    try:
-        return profile_service.update_user_profile(user_id, validated_data, avatar_file)
-    except ValueError as ve:
-        logger.warning(f"ProfileController: ValueError in update_user_profile for user_id {user_id}: {ve}")
-        raise
-    except Exception as e:
-        logger.error(f"ProfileController: Error in update_user_profile for user_id {user_id}: {e}", exc_info=True)
-        raise
+    @staticmethod
+    def update_user_profile(user_id: str,
+                            data: Dict[str,
+                                       Any],
+                            avatar_file: Optional[Any] = None) -> Optional[Dict[str,
+                                                                                Any]]:
+        return ProfileService.update_user_profile(user_id, data, avatar_file)
 
-def delete_user_profile_interface(user_id):
-    try:
-        return profile_service.delete_user_profile(user_id)
-    except Exception as e:
-        logger.error(f"ProfileController: Error in delete_user_profile for user_id {user_id}: {e}", exc_info=True)
-        raise
+    @staticmethod
+    def delete_user_profile(user_id: str) -> bool:
+        return ProfileService.delete_user_profile(user_id)
