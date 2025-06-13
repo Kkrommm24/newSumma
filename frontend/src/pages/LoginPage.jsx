@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Form, Input, Button, Typography, Spin, Alert, Row, Col, Checkbox, Card, Image, ConfigProvider } from 'antd';
+import { Form, Input, Button, Typography, Spin, Row, Col, Checkbox, Card, Image, ConfigProvider, App } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthService from '../services/authService';
 import axiosInstance from '../services/axiosInstance';
 import loginImage from '../assets/images/login_img.png';
+import { getErrorMessage, errorMap } from '../utils/errorUtils';
 
 const { Title, Paragraph, Link } = Typography;
 
 const LoginPage = () => {
+  const { message: messageApi } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [checkingPrefs, setCheckingPrefs] = useState(false);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { login, authLoading } = useAuth();
@@ -21,7 +22,6 @@ const LoginPage = () => {
 
   const onFinish = async (values) => {
     setLoading(true);
-    setError('');
     try {
       const loginData = await AuthService.login(values.username, values.password);
 
@@ -50,15 +50,14 @@ const LoginPage = () => {
             setCheckingPrefs(false);
           }
         } else {
-          setError('Đã xảy ra lỗi khi xử lý thông tin đăng nhập.');
+          messageApi.error('Đã xảy ra lỗi khi xử lý thông tin đăng nhập.');
         }
       } else {
-        setError('Dữ liệu đăng nhập không hợp lệ từ server.');
+        messageApi.error('Dữ liệu đăng nhập không hợp lệ từ server.');
       }
     } catch (error) {
-      const defaultErrorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.';
-      const backendError = error.response?.data?.detail || defaultErrorMessage;
-      setError(backendError);
+      const errorMessage = getErrorMessage(error, errorMap);
+      messageApi.error(errorMessage || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tên đăng nhập và mật khẩu.');
     } finally {
       setLoading(false);
     }
@@ -125,12 +124,6 @@ const LoginPage = () => {
                     initialValues={{ remember: false }}
                     onFinish={onFinish}
                   >
-                    {error && (
-                      <Form.Item className="mb-5">
-                        <Alert message={error} type="error" showIcon />
-                      </Form.Item>
-                    )}
-
                     <Form.Item
                       label={<span className="text-gray-700">Tên đăng nhập</span>}
                       name="username"

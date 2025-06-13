@@ -24,27 +24,15 @@ class UserRegistrationView(generics.CreateAPIView):
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError as e:
-            # Xử lý lỗi validation từ serializer (bao gồm lỗi 409 Conflict)
             error_detail = e.detail
             is_conflict = False
-            if 'email' in error_detail and isinstance(error_detail['email'], list) and any(
-                    'already exists' in str(msg).lower() for msg in error_detail['email']):
-                is_conflict = True
-            if 'username' in error_detail and isinstance(
-                    error_detail['username'], list) and any(
-                    'already exists' in str(msg).lower() for msg in error_detail['username']):
-                is_conflict = True
 
-            if not is_conflict and isinstance(
-                error_detail,
-                dict) and any(
-                isinstance(
-                    v,
-                    list) and isinstance(
-                    v[0],
-                    str) for v in error_detail.values()):
-                pass
-
+            # Kiểm tra lỗi unique bằng `code` thay vì message string
+            for field, errors in error_detail.items():
+                if isinstance(errors, list) and any(getattr(msg, 'code', None) == 'unique' for msg in errors):
+                    is_conflict = True
+                    break
+            
             if is_conflict:
                 logger.warning(
                     f"UserRegistrationView: Conflict error during registration: {error_detail}")
@@ -73,12 +61,6 @@ class UserRegistrationView(generics.CreateAPIView):
                 "message": "User registered successfully. Welcome email is being sent."
             }, status=status.HTTP_201_CREATED)
 
-        except ValidationError as e:
-            logger.error(
-                f"UserRegistrationView: Service-level error during registration (wrapped in ValidationError): {e.detail}",
-                exc_info=True)
-            return Response(
-                e.detail, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(
                 f"UserRegistrationView: Unexpected error during registration: {e}",

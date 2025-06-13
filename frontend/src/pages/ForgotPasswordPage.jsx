@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Typography, Spin, Alert, Row, Col, Card, ConfigProvider } from 'antd';
+import { Form, Input, Button, Typography, Spin, Row, Col, Card, ConfigProvider, App } from 'antd';
 import { MailOutlined } from '@ant-design/icons';
 import axiosInstance from '../services/axiosInstance'; // Sử dụng axiosInstance đã cấu hình
+import { getErrorMessage, errorMap } from '../utils/errorUtils';
 
 const { Title, Paragraph, Link } = Typography;
 
 const ForgotPasswordPage = () => {
+  const { message: messageApi } = App.useApp();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isCoolingDown, setIsCoolingDown] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
   const navigate = useNavigate();
@@ -41,18 +41,15 @@ const ForgotPasswordPage = () => {
 
   const onFinish = async (values) => {
     setLoading(true);
-    setError('');
-    setSuccessMessage('');
     try {
       const response = await axiosInstance.post('/user/request-password-reset/', {
         email: values.email,
       });
-      setSuccessMessage(response.data?.message || 'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu.');
-      startCooldown(); // Bắt đầu cooldown khi thành công
+      messageApi.success(response.data?.message || 'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu.');
+      startCooldown();
     } catch (err) {
-      const defaultErrorMessage = 'Yêu cầu đặt lại mật khẩu thất bại. Vui lòng thử lại.';
-      const backendError = err.response?.data?.email?.[0] || err.response?.data?.error;
-      setError(backendError || defaultErrorMessage);
+      const errorMessage = getErrorMessage(err, errorMap);
+      messageApi.error(errorMessage || 'Yêu cầu đặt lại mật khẩu thất bại. Vui lòng thử lại.');
       console.error("Forgot password request failed:", err.response || err);
     } finally {
       setLoading(false);
@@ -86,17 +83,6 @@ const ForgotPasswordPage = () => {
                     name="forgot_password_form"
                     onFinish={onFinish}
                   >
-                    {error && (
-                      <Form.Item className="mb-5">
-                        <Alert message={error} type="error" showIcon />
-                      </Form.Item>
-                    )}
-                    {successMessage && (
-                       <Form.Item className="mb-5">
-                        <Alert message={successMessage} type="success" showIcon />
-                      </Form.Item>
-                    )}
-
                     <Form.Item
                       label={<span className="text-gray-700">Email</span>}
                       name="email"

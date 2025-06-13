@@ -1,76 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Typography, Spin, Alert, Row, Col, Card, Image, ConfigProvider, message } from 'antd';
+import { Form, Input, Button, Typography, Spin, Alert, Row, Col, Card, Image, ConfigProvider, App } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import AuthService from '../services/authService';
 import loginImage from '../assets/images/login_img.png';
+import { getErrorMessage, errorMap } from '../utils/errorUtils';
 
 const { Title, Paragraph } = Typography;
 
 const RegisterPage = () => {
+  const { message: messageApi } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const [form] = Form.useForm();
-
+  
   const onFinish = async (values) => {
     setLoading(true);
     setError(null);
     try {
       const response = await AuthService.register(values.username, values.email, values.password, values.password2);
-      message.success(response.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
+      messageApi.success(response.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
       navigate('/login');
     } catch (err) {
-      let userFriendlyErrors = [];
-      const genericError = 'Đăng ký thất bại. Có lỗi xảy ra, vui lòng thử lại.';
-
-      if (err.response) {
-        const status = err.response.status;
-        const errors = err.response.data;
-        console.error("Registration API Error Response:", err.response);
-
-        if (status === 409) {
-          if (errors.username) {
-            userFriendlyErrors.push('Tên đăng nhập này đã được sử dụng.');
-          }
-          if (errors.email) {
-            userFriendlyErrors.push('Địa chỉ email này đã được sử dụng.');
-          }
-
-          if (userFriendlyErrors.length === 0) {
-             userFriendlyErrors.push('Tên đăng nhập hoặc email đã tồn tại.');
-          }
-        } else if (status === 400) {
-           if (errors.password2) {
-             userFriendlyErrors.push('Mật khẩu xác nhận không khớp.');
-           } else if (errors.email) { 
-             userFriendlyErrors.push('Địa chỉ email không hợp lệ.');
-           } else if (errors.password) {
-             userFriendlyErrors.push('Mật khẩu không hợp lệ (có thể quá ngắn hoặc không đủ phức tạp).');
-           } else {
-             userFriendlyErrors.push('Dữ liệu đăng ký không hợp lệ. Vui lòng kiểm tra lại.');
-           }
-        } else {
-          // Các lỗi server khác (500, etc.)
-          userFriendlyErrors.push(genericError);
-        }
-        
-        if (errors.detail) {
-            userFriendlyErrors.push(errors.detail);
-        } else if (errors.non_field_errors) {
-            userFriendlyErrors.push(errors.non_field_errors.join(' '));
-        }
-
-      } else {
-        console.error("Registration Network/Request Error:", err);
-        userFriendlyErrors.push('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.');
-      }
-      if (userFriendlyErrors.length === 0) {
-          userFriendlyErrors.push(genericError);
-      }
-
-      setError(userFriendlyErrors.map((msg, index) => <div key={index}>{msg}</div>));
-      
+      console.error("Registration API Error Response:", err);
+      const errorMessage = getErrorMessage(err, errorMap);
+      setError(errorMessage);
+      messageApi.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,6 +51,14 @@ const RegisterPage = () => {
                         colorPrimaryHover: '#374151',
                         colorPrimaryActive: '#111827',
                         colorPrimaryBorder: '#252525',
+                    },
+                    Alert: {
+                        colorErrorBg: '#ef4444',
+                        colorErrorBorder: '#dc2626',
+                        colorText: '#ffffff',
+                        colorTextHeading: '#ffffff',
+                        colorIcon: '#ffffff',
+                        colorIconHover: '#ffffff',
                     }
                 }
               }}
@@ -116,7 +80,6 @@ const RegisterPage = () => {
                   >
                     {error && (
                       <Form.Item className="mb-5">
-                        <Alert message="Lỗi đăng ký" description={error} type="error" showIcon />
                       </Form.Item>
                     )}
 
