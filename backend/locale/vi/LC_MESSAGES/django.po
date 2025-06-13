@@ -19,28 +19,28 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 #: authorizer/serializers/serializers.py:14
 msgid "Tên đăng nhập hoặc mật khẩu không đúng."
-msgstr ""
+msgstr "Tên đăng nhập hoặc mật khẩu không đúng."
 
 #: user/serializers/serializers.py:12 user/serializers/serializers.py:28
 msgid "Mật khẩu này quá phổ biến."
-msgstr ""
+msgstr "Mật khẩu này quá phổ biến."
 
 #: user/serializers/serializers.py:13
 msgid "Mật khẩu quá giống với tên người dùng."
-msgstr ""
+msgstr "Mật khẩu quá giống với tên người dùng."
 
 #: user/serializers/serializers.py:14
 msgid "Mật khẩu quá giống với địa chỉ email."
-msgstr ""
+msgstr "Mật khẩu quá giống với địa chỉ email."
 
 #: user/serializers/serializers.py:26
 #, python-brace-format
 msgid "Mật khẩu phải chứa ít nhất {min_length} ký tự."
-msgstr ""
+msgstr "Mật khẩu phải chứa ít nhất {min_length} ký tự."
 
 #: user/serializers/serializers.py:30
 msgid "Mật khẩu không được hoàn toàn là chữ số."
-msgstr ""
+msgstr "Mật khẩu không được hoàn toàn là chữ số."
 
 #: user/serializers/serializers.py:135 user/serializers/serializers.py:183
 msgid "Confirm password"
@@ -48,20 +48,26 @@ msgstr "Xác nhận mật khẩu"
 
 #: user/serializers/serializers.py:146
 msgid "A user with that email already exists."
-msgstr "Một người dùng với email vừa nhập đã tồn tại"
+msgstr "Địa chỉ email này đã được sử dụng."
 
 #: user/serializers/serializers.py:151
 msgid "A user with that username already exists."
-msgstr "Một người dùng với username vừa nhập đã tồn tại"
+msgstr "Tên đăng nhập này đã được sử dụng."
 
 #: user/serializers/serializers.py:156 user/serializers/serializers.py:188
 msgid "Mật khẩu xác nhận không khớp."
-msgstr ""
+msgstr "Mật khẩu xác nhận không khớp."
 
 #: user/serializers/serializers.py:178
 msgid "Không tìm thấy người dùng với địa chỉ email này."
-msgstr ""
+msgstr "Không tìm thấy người dùng với địa chỉ email này."
 
 #: user/serializers/serializers.py:233
 msgid "Mật khẩu mới không khớp."
-msgstr ""
+msgstr "Mật khẩu mới không khớp."
+
+msgid "user có username đã tồn tại."
+msgstr "Tên đăng nhập này đã được sử dụng."
+
+msgid "user có email đã tồn tại."
+msgstr "Địa chỉ email này đã được sử dụng."

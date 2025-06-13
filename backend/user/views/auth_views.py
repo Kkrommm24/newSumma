@@ -12,46 +12,30 @@ class PasswordChangeView(APIView):
     def post(self, request):
         serializer = PasswordChangeSerializer(
             data=request.data, context={'request': request})
-        if serializer.is_valid():
-            user_id = request.user.id
-            old_password = serializer.validated_data['old_password']
-            new_password = serializer.validated_data['new_password']
-
-            try:
-                success = AuthController.change_password(
-                    user_id, old_password, new_password)
-                if success:
-                    return Response(
-                        {"message": "Đổi mật khẩu thành công."},
-                        status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({"error": str(e)},
-                                status=status.HTTP_400_BAD_REQUEST)
-        else:
+        try:
+            serializer.is_valid(raise_exception=True)
+            AuthController.change_password(
+                request.user, serializer.validated_data['new_password'])
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                {"message": "Đổi mật khẩu thành công."},
+                status=status.HTTP_200_OK)
+        except Exception as e:
+            error_data = e.detail if hasattr(e, 'detail') else str(e)
+            return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AccountDeletionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = AccountDeletionSerializer(data=request.data)
-        if serializer.is_valid():
-            password = serializer.validated_data['password']
-            user_id = request.user.id
-
-            try:
-                success = AuthController.delete_account(user_id, password)
-                if success:
-                    return Response(
-                        {"message": "Tài khoản đã được vô hiệu hóa."},
-                        status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({"error": str(e)},
-                                status=status.HTTP_400_BAD_REQUEST)
-        else:
+        serializer = AccountDeletionSerializer(
+            data=request.data, context={'request': request})
+        try:
+            serializer.is_valid(raise_exception=True)
+            AuthController.delete_account(request.user)
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                {"message": "Tài khoản đã được vô hiệu hóa."},
+                status=status.HTTP_200_OK)
+        except Exception as e:
+            error_data = e.detail if hasattr(e, 'detail') else str(e)
+            return Response(error_data, status=status.HTTP_400_BAD_REQUEST)

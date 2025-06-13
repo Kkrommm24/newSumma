@@ -3,23 +3,9 @@ import { Card, Form, Input, Button, Avatar, Upload, Modal, Spin, Typography, Spa
 import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, ExclamationCircleFilled } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import AuthService from '../services/authService';
+import { getErrorMessage, errorMap } from '../utils/errorUtils';
 
 const { Title } = Typography;
-
-const getErrorMessage = (error) => {
-    if (error.response?.data) {
-        const data = error.response.data;
-        if (data.detail) return data.detail;
-        if (data.error) return data.error;
-        if (typeof data === 'object') {
-            const errorMessages = Object.values(data).flat();
-            if (errorMessages.length > 0) {
-                return errorMessages[0];
-            }
-        }
-    }
-    return 'Đã xảy ra lỗi không mong muốn.';
-};
 
 function Profile() {
     const { message: messageApi, modal: modalApi } = App.useApp();
@@ -48,7 +34,7 @@ function Profile() {
             } catch (error) {
                 if (isMounted) {
                     console.error("Failed to fetch profile:", error);
-                    messageApi.error(getErrorMessage(error));
+                    messageApi.error(getErrorMessage(error, errorMap));
                 }
             } finally {
                 if (isMounted) {
@@ -101,9 +87,8 @@ function Profile() {
             setFileList([]);
             messageApi.success('Cập nhật hồ sơ thành công!');
         } catch (error) {
-            console.error("Failed to update profile (raw error):", error);
-            const errorMsg = getErrorMessage(error);
-            messageApi.error(errorMsg);
+            console.error("Failed to update profile:", error);
+            messageApi.error(getErrorMessage(error, errorMap));
         } finally {
             setUpdating(false);
         }
@@ -117,24 +102,8 @@ function Profile() {
             setChangePasswordModalVisible(false);
             passwordForm.resetFields();
         } catch (error) {
-            console.error("Failed to change password (raw error):", error);
-            let errorMsg = 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
-            
-            if (error.response?.data) {
-                if (error.response.data.detail) {
-                    errorMsg = error.response.data.detail;
-                } else if (error.response.data.old_password) {
-                    const oldPasswordError = error.response.data.old_password;
-                    errorMsg = Array.isArray(oldPasswordError) ? oldPasswordError[0].replace(/[\[\]']/g, '') : oldPasswordError;
-                } else if (error.response.data.new_password) {
-                    const newPasswordError = error.response.data.new_password;
-                    errorMsg = Array.isArray(newPasswordError) ? newPasswordError[0].replace(/[\[\]']/g, '') : newPasswordError;
-                } else if (typeof error.response.data === 'string') {
-                    errorMsg = error.response.data;
-                }
-            }
-            
-            messageApi.error(errorMsg);
+            console.error("Failed to change password:", error);
+            messageApi.error(getErrorMessage(error, errorMap));
         } finally {
             setChangingPassword(false);
         }
@@ -171,9 +140,8 @@ function Profile() {
                     setDeleting(false);
                     logout();
                 } catch (error) { 
-                    console.error("Failed to delete account (raw error):", error);
-                    const errorMsg = getErrorMessage(error);
-                    messageApi.error(errorMsg);
+                    console.error("Failed to delete account:", error);
+                    messageApi.error(getErrorMessage(error, errorMap));
                     setDeleting(false);
                     throw error;
                 }
