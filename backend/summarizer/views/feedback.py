@@ -32,8 +32,7 @@ def record_summary_feedback(request):
 
     try:
         summary_obj, trigger_resummarize, final_upvotes, final_downvotes = feedback_controller.record_feedback_interface(
-            user=user, summary_id=summary_id, is_upvote=is_upvote
-        )
+            user=user, summary_id=summary_id, is_upvote=is_upvote)
 
         if summary_obj is None:
             try:
@@ -48,7 +47,8 @@ def record_summary_feedback(request):
                                  'message': 'Summary not found.'},
                                 status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                logger.error(f"View: Unexpected error checking summary existence for {summary_id}: {e}")
+                logger.error(
+                    f"View: Unexpected error checking summary existence for {summary_id}: {e}")
                 return Response({'status': 'error',
                                  'message': 'An unexpected error occurred.'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -70,7 +70,8 @@ def record_summary_feedback(request):
                 summarize_single_article_task.delay(
                     article_id_str=str(summary_obj.article_id))
             except Exception as task_error:
-                logger.error(f"View: Lỗi khi trigger summarize_single_article_task cho article {summary_obj.article_id}: {task_error}")
+                logger.error(
+                    f"View: Lỗi khi trigger summarize_single_article_task cho article {summary_obj.article_id}: {task_error}")
                 pass
 
         return Response({
@@ -88,7 +89,9 @@ def record_summary_feedback(request):
                          'message': 'Summary not found.'},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.error(f"View: Unexpected error in record_summary_feedback for summary {summary_id}: {e}", exc_info=False)
+        logger.error(
+            f"View: Unexpected error in record_summary_feedback for summary {summary_id}: {e}",
+            exc_info=False)
         return Response({'status': 'error',
                          'message': 'An unexpected error occurred in the view.'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)

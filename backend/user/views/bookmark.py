@@ -5,7 +5,7 @@ from user.serializers.serializers import (
     AddBookmarkSerializer,
     DeleteBookmarkSerializer
 )
-from user.services import bookmark_service
+from user.user.bookmark_controller.bookmark_controller import BookmarkController
 from rest_framework.exceptions import APIException
 
 
@@ -22,7 +22,7 @@ class UserBookmarkView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         try:
             user_id = request.user.id
-            bookmarks = bookmark_service.get_bookmarks(user_id)
+            bookmarks = BookmarkController.get_bookmarks(user_id)
             serializer = UserBookmarkSerializer(bookmarks, many=True)
             return Response({
                 "items": serializer.data,
@@ -47,7 +47,7 @@ class UserBookmarkView(generics.GenericAPIView):
             try:
                 user_id = request.user.id
                 article_id = serializer.validated_data['article_id']
-                bookmark_service.add_bookmark(user_id, article_id)
+                BookmarkController.add_bookmark(user_id, article_id)
                 return Response({
                     "message": "Bookmark đã được thêm thành công.",
                     "status": "success"
@@ -73,7 +73,7 @@ class UserBookmarkView(generics.GenericAPIView):
             try:
                 user_id = request.user.id
                 article_id = serializer.validated_data['article_id']
-                bookmark_service.remove_bookmark(user_id, article_id)
+                BookmarkController.remove_bookmark(user_id, article_id)
                 return Response({
                     "message": "Bookmark đã được xóa thành công.",
                     "status": "success"

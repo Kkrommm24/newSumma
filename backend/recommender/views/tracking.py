@@ -5,9 +5,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from summarizer.models import NewsSummary
 
 from recommender.recommenders.recommender_controller.recommender_controller import (
-    log_summary_view_interface,
-    track_source_click_interface
-)
+    log_summary_view_interface, track_source_click_interface)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -56,7 +54,9 @@ def log_summary_view_time(request):
         return Response({"error": "Summary not found"},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.error(f"Failed to log view time for summary {summary_id}, user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to log view time for summary {summary_id}, user {user_id}: {e}",
+            exc_info=True)
         return Response({"error": "Failed to log view time due to a server error."},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -74,7 +74,7 @@ def track_source_click(request):
 
     try:
         service_response = track_source_click_interface(
-            user_id_to_log, 
+            user_id_to_log,
             summary_id_from_request
         )
 
@@ -87,6 +87,8 @@ def track_source_click(request):
         return Response({"error": "Summary not found"},
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.error(f"Failed to track click for summary {summary_id_from_request}, user {user_id_to_log}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to track click for summary {summary_id_from_request}, user {user_id_to_log}: {e}",
+            exc_info=True)
         return Response({"error": "Failed to track click due to a server error."},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)

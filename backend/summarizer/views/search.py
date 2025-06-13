@@ -28,7 +28,8 @@ class ArticleSummarySearchView(APIView):
         query = query_param.strip()
 
         try:
-            summary_queryset = search_controller.search_summaries_interface(query)
+            summary_queryset = search_controller.search_summaries_interface(
+                query)
 
             paginator = self.pagination_class()
             paginated_summaries = paginator.paginate_queryset(
@@ -50,7 +51,9 @@ class ArticleSummarySearchView(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
-            logger.error(f"SearchView: Error during search for query '{query}': {e}", exc_info=False)
+            logger.error(
+                f"SearchView: Error during search for query '{query}': {e}",
+                exc_info=False)
             return Response(
                 {"error": "An error occurred during search processing."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

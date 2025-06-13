@@ -1,12 +1,11 @@
-from user.services import registration_service
-import logging
+from user.services.registration_service import RegistrationService
+from typing import Dict, Any, TYPE_CHECKING
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from user.models import User
 
-def register_user_interface(validated_data):
-    try:
-        user = registration_service.register_user(validated_data)
-        return user
-    except Exception as e:
-        logger.error(f"UserRegistrationController: Error during user registration: {e}", exc_info=False)
-        raise
+
+class UserRegistrationController:
+    @staticmethod
+    def register_user(validated_data: Dict[str, Any]) -> 'User':
+        return RegistrationService.register_user(validated_data)

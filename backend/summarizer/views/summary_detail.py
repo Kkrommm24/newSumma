@@ -17,10 +17,13 @@ class SummaryDetailView(generics.RetrieveAPIView):
     def get_object(self):
         summary_id = self.kwargs.get(self.lookup_field)
         try:
-            summary = summary_detail_controller.get_summary_detail_interface(summary_id)
+            summary = summary_detail_controller.get_summary_detail_interface(
+                summary_id)
             return summary
         except Exception as e:
-            logger.error(f"SummaryDetailView: Error getting object for summary_id {summary_id}: {e}", exc_info=True)
+            logger.error(
+                f"SummaryDetailView: Error getting object for summary_id {summary_id}: {e}",
+                exc_info=True)
             raise
 
     def get_serializer_context(self):
@@ -32,7 +35,8 @@ class SummaryDetailView(generics.RetrieveAPIView):
                     article = NewsArticle.objects.get(id=summary.article_id)
                     context['articles'] = {str(summary.article_id): article}
                 except NewsArticle.DoesNotExist:
-                    logger.warning(f"SummaryDetailView: Article {summary.article_id} not found for summary {summary.id}")
+                    logger.warning(
+                        f"SummaryDetailView: Article {summary.article_id} not found for summary {summary.id}")
                     context['articles'] = {}
             else:
                 context['articles'] = {}
@@ -52,11 +56,14 @@ class ArticleSummaryView(generics.RetrieveAPIView):
     def get_object(self):
         article_id = self.kwargs.get(self.lookup_field)
         try:
-            summary, article = summary_detail_controller.get_article_summary_interface(article_id)
+            summary, article = summary_detail_controller.get_article_summary_interface(
+                article_id)
             self.article = article
             return summary
         except Exception as e:
-            logger.error(f"ArticleSummaryView: Error getting object for article_id {article_id}: {e}", exc_info=True)
+            logger.error(
+                f"ArticleSummaryView: Error getting object for article_id {article_id}: {e}",
+                exc_info=True)
             raise
 
     def get_serializer_context(self):
