@@ -1,6 +1,6 @@
 from news.models import NewsArticle, NewsArticleCategory, ArticleStats
 from user.models import UserPreference
-from summarizer.models import NewsSummary
+from summarizer.models import NewsSummary, SummaryFeedback
 from user.models import SearchHistory
 from recommender.models import SummaryViewLog, SummaryRanking, SummaryClickLog
 from django.contrib.postgres.search import SearchQuery, SearchRank
@@ -14,11 +14,13 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal
 from django.core.cache import cache
 import math
+import uuid
 from ..recommenders.recommender_controller import recommender_controller as recommender_logic
 
 logger = logging.getLogger(__name__)
 SEARCH_HISTORY_LIMIT = 5
 MIN_RANK_THRESHOLD = 0.05
+RECOMMENDATION_CANDIDATE_WINDOW_DAYS = 30 # Limit candidates to recent summaries
 VIEW_DURATION_THRESHOLD = Decimal('3.0')
 CATEGORY_WEIGHT = 0.5
 SEARCH_HISTORY_WEIGHT = 0.3
@@ -31,33 +33,6 @@ def _clear_user_softmax_cache(user_id):
     cache.delete(f"{cache_key_prefix}_sum_exp_c")
     cache.delete(f"{cache_key_prefix}_max_d")
     cache.delete(f"{cache_key_prefix}_max_c")
-
-def _calculate_fts_score_for_summary(summary_obj, keywords_list: list[str], search_config='vietnamese') -> float:
-    if not keywords_list or not summary_obj or not summary_obj.search_vector:
-        return 0.0
-
-    valid_keywords = [kw for kw in keywords_list if kw and isinstance(kw, str)]
-    if not valid_keywords:
-        return 0.0
-
-    fts_queries = [
-        SearchQuery(kw, search_type='plain', config=search_config)
-        for kw in valid_keywords
-    ]
-
-    if not fts_queries:
-        return 0.0
-
-    combined_fts_query = reduce(operator.or_, fts_queries)
-
-    summary_rank_data = NewsSummary.objects.filter(pk=summary_obj.pk).annotate(
-        rank=SearchRank(F('search_vector'), combined_fts_query)
-    ).values('rank').first()
-
-    if summary_rank_data and summary_rank_data['rank'] is not None:
-        return float(summary_rank_data['rank'])
-    return 0.0
-
 
 def _update_summary_ranking(summary_id, user_id, category_id=None):
     if not user_id:
@@ -291,18 +266,124 @@ def process_summary_click_service(user_id, summary_id_from_request):
         raise
 
 
+def _batch_get_fts_scores(summary_ids: list[uuid.UUID], keywords: list[str]) -> dict[uuid.UUID, float]:
+    if not keywords or not summary_ids:
+        return {}
+    
+    valid_keywords = [kw for kw in keywords if kw and isinstance(kw, str)]
+    if not valid_keywords:
+        return {}
+
+    fts_queries = [SearchQuery(kw, search_type='plain', config='vietnamese') for kw in valid_keywords]
+    combined_fts_query = reduce(operator.or_, fts_queries)
+
+    summaries_with_rank = NewsSummary.objects.filter(id__in=summary_ids).annotate(
+        fts_rank=SearchRank(F('search_vector'), combined_fts_query)
+    ).values('id', 'fts_rank')
+    
+    return {item['id']: float(item['fts_rank'] or 0.0) for item in summaries_with_rank}
+
+def _batch_calculate_initial_category_scores(user_id: str, article_ids: list[uuid.UUID]) -> dict[uuid.UUID, float]:
+    if not user_id or not article_ids:
+        return {}
+
+    all_interactions = _get_all_user_category_interactions_service(user_id)
+    if not all_interactions:
+        return {aid: 0.0 for aid in article_ids}
+
+    article_to_category_map = dict(NewsArticleCategory.objects.filter(
+        article_id__in=list(set(article_ids))
+    ).values_list('article_id', 'category_id'))
+
+    all_durations = [item['duration'] for item in all_interactions]
+    all_clicks = [item['clicks'] for item in all_interactions]
+    max_d_overall = max(all_durations) if all_durations else Decimal('0.0')
+    max_c_overall = max(all_clicks) if all_clicks else Decimal('0.0')
+    
+    try:
+        exp_d_values = [math.exp(float(d - max_d_overall)) for d in all_durations]
+        exp_c_values = [math.exp(float(c - max_c_overall)) for c in all_clicks]
+    except OverflowError:
+        return {aid: 0.0 for aid in article_ids}
+
+    sum_exp_d_all = Decimal(str(sum(exp_d_values)))
+    sum_exp_c_all = Decimal(str(sum(exp_c_values)))
+    
+    category_interaction_map = {str(item['category_id']): item for item in all_interactions}
+    scores = {}
+
+    for article_id in article_ids:
+        category_id = article_to_category_map.get(article_id)
+        if not category_id:
+            scores[article_id] = 0.0
+            continue
+        
+        interaction = category_interaction_map.get(str(category_id), {'duration': Decimal('0'), 'clicks': Decimal('0')})
+        
+        try:
+            exp_d_current = Decimal(str(math.exp(float(interaction['duration'] - max_d_overall))))
+            exp_c_current = Decimal(str(math.exp(float(interaction['clicks'] - max_c_overall))))
+        except OverflowError:
+            scores[article_id] = 0.0
+            continue
+
+        score = recommender_logic.finalize_softmax_category_score(
+            sum_exp_d_all=sum_exp_d_all, sum_exp_c_all=sum_exp_c_all,
+            exp_d_current=exp_d_current, exp_c_current=exp_c_current
+        )
+        scores[article_id] = score
+    
+    return scores
+
+def _batch_calculate_new_rankings(user_id, summaries_to_rank, sh_keywords, fk_keywords):
+    if not summaries_to_rank:
+        return [], []
+
+    summary_ids_to_rank = [s.id for s in summaries_to_rank]
+    article_ids_to_rank = [s.article_id for s in summaries_to_rank if s.article_id]
+
+    sh_scores = _batch_get_fts_scores(summary_ids_to_rank, sh_keywords)
+    fk_scores = _batch_get_fts_scores(summary_ids_to_rank, fk_keywords)
+    category_scores = _batch_calculate_initial_category_scores(user_id, article_ids_to_rank)
+
+    newly_ranked_summaries = []
+    new_rankings_to_create = []
+
+    for summary in summaries_to_rank:
+        cat_score = category_scores.get(summary.article_id, 0.0) if summary.article_id else 0.0
+        sh_score = sh_scores.get(summary.id, 0.0)
+        fk_score = fk_scores.get(summary.id, 0.0)
+
+        total_score = recommender_logic.calculate_total_score_from_components(
+            cat_score, sh_score, fk_score,
+            CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
+        )
+        summary.score = total_score
+        newly_ranked_summaries.append(summary)
+
+        if total_score >= MIN_TOTAL_SCORE_TO_SAVE:
+            new_rankings_to_create.append(SummaryRanking(
+                summary_id=summary.id, user_id=user_id,
+                category_score=cat_score, search_history_score=sh_score,
+                favorite_keywords_score=fk_score, total_score=total_score
+            ))
+            
+    return newly_ranked_summaries, new_rankings_to_create
+
+
 def get_recommendations_for_user(
         user_id,
         current_summary_id=None,
         limit=10,
         offset=0):
     if not user_id:
-        return [], {}, {
-            'type': 'auth_required',
-            'message': 'Cần đăng nhập để nhận đề xuất cá nhân hóa'
-        }
+        return [], {}, {'type': 'auth_required', 'message': 'Cần đăng nhập để nhận đề xuất cá nhân hóa'}
 
     try:
+        downvoted_summary_ids = list(SummaryFeedback.objects.filter(
+            user_id=user_id, is_upvote=False
+        ).values_list('summary_id', flat=True))
+
         search_history_keywords = list(SearchHistory.objects.filter(
             user_id=user_id,
             created_at__gte=timezone.now() - datetime.timedelta(days=7)
@@ -316,52 +397,43 @@ def get_recommendations_for_user(
         except UserPreference.DoesNotExist:
             pass
 
-        summaries_qs = NewsSummary.objects.all()
+        candidate_summaries_qs = NewsSummary.objects.filter(
+            created_at__gte=timezone.now() - datetime.timedelta(days=RECOMMENDATION_CANDIDATE_WINDOW_DAYS)
+        ).exclude(id__in=downvoted_summary_ids)
+
         if current_summary_id:
-            summaries_qs = summaries_qs.exclude(id=current_summary_id)
+            candidate_summaries_qs = candidate_summaries_qs.exclude(id=current_summary_id)
+        
+        all_candidate_summaries = list(candidate_summaries_qs)
+        all_candidate_summary_ids = [s.id for s in all_candidate_summaries]
 
-        user_rankings = SummaryRanking.objects.filter(
-            user_id=user_id,
-            summary_id__in=summaries_qs.values_list('id', flat=True)
-        )
-        rankings_dict = {str(r.summary_id): r for r in user_rankings}
-
+        existing_rankings = SummaryRanking.objects.filter(user_id=user_id, summary_id__in=all_candidate_summary_ids)
+        existing_rankings_map = {r.summary_id: r for r in existing_rankings}
+        
         summaries_with_score = []
-        for summary in summaries_qs:
-            ranking = rankings_dict.get(str(summary.id))
-            if ranking:
-                summary.score = ranking.total_score
+        summaries_needing_ranking = []
+
+        for summary in all_candidate_summaries:
+            if summary.id in existing_rankings_map:
+                summary.score = existing_rankings_map[summary.id].total_score
+                summaries_with_score.append(summary)
             else:
-                try:
-                    category_score = _calculate_initial_category_score(user_id, summary.article_id)
-                    sh_score = _calculate_fts_score_for_summary(summary, search_history_keywords)
-                    fk_score = _calculate_fts_score_for_summary(summary, favorite_keywords_data)
+                summaries_needing_ranking.append(summary)
 
-                    calculated_total_score = recommender_logic.calculate_total_score_from_components(
-                        category_score, sh_score, fk_score,
-                        CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
-                    )
-                    
-                    if calculated_total_score >= MIN_TOTAL_SCORE_TO_SAVE:
-                        new_ranking = SummaryRanking.objects.create(
-                            summary_id=summary.id, user_id=user_id,
-                            category_score=category_score, search_history_score=sh_score,
-                            favorite_keywords_score=fk_score, total_score=calculated_total_score
-                        )
-                        summary.score = new_ranking.total_score
-                    else:
-                        summary.score = calculated_total_score
-
-                except Exception as e_create_ranking:
-                    logger.error(f"Error creating new ranking for summary {summary.id}: {e_create_ranking}", exc_info=True)
-                    summary.score = 0
-            summaries_with_score.append(summary)
+        if summaries_needing_ranking:
+            newly_ranked_summaries, new_rankings_to_create = _batch_calculate_new_rankings(
+                user_id, summaries_needing_ranking, search_history_keywords, favorite_keywords_data
+            )
+            summaries_with_score.extend(newly_ranked_summaries)
+            if new_rankings_to_create:
+                SummaryRanking.objects.bulk_create(new_rankings_to_create, ignore_conflicts=True)
 
         sorted_summaries = sorted(
             summaries_with_score,
             key=lambda x: (x.score, getattr(x, 'created_at', timezone.now())),
             reverse=True
         )
+
         total_recommended_count = len(sorted_summaries)
         paginated_summaries = sorted_summaries[offset:offset + limit]
 
@@ -381,6 +453,68 @@ def get_recommendations_for_user(
         return [], {}, {'type': 'error', 'message': str(e)}
 
 
+def _batch_update_fts_scores(user_id, keywords_list, score_field_name, score_weight):
+    if not user_id:
+        return
+
+    # Get all existing rankings for the user to be updated.
+    user_rankings_qs = SummaryRanking.objects.filter(user_id=user_id)
+    summary_ids = user_rankings_qs.values_list('summary_id', flat=True)
+
+    if not summary_ids.exists():
+        logger.info(f"No existing rankings to update for user {user_id} for score '{score_field_name}'.")
+        return
+
+    # Handle empty keywords: reset scores to 0.
+    valid_keywords = [kw for kw in keywords_list if kw and isinstance(kw, str)]
+    if not valid_keywords:
+        rankings_to_update = []
+        for ranking in user_rankings_qs:
+            if getattr(ranking, score_field_name) != 0.0:
+                setattr(ranking, score_field_name, 0.0)
+                ranking.total_score = recommender_logic.calculate_total_score_from_components(
+                    ranking.category_score, ranking.search_history_score, ranking.favorite_keywords_score,
+                    CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
+                )
+                rankings_to_update.append(ranking)
+        if rankings_to_update:
+            SummaryRanking.objects.bulk_update(rankings_to_update, [score_field_name, 'total_score', 'updated_at'])
+            logger.info(f"Reset {score_field_name} to 0 for {len(rankings_to_update)} rankings for user {user_id}.")
+        return
+
+    # Build FTS query
+    fts_queries = [SearchQuery(kw, search_type='plain', config='vietnamese') for kw in valid_keywords]
+    combined_fts_query = reduce(operator.or_, fts_queries)
+
+    # Get all FTS scores in one query
+    summaries_with_rank = NewsSummary.objects.filter(id__in=summary_ids).annotate(
+        fts_rank=SearchRank(F('search_vector'), combined_fts_query)
+    ).values('id', 'fts_rank')
+    
+    summary_rank_map = {str(item['id']): float(item['fts_rank'] or 0.0) for item in summaries_with_rank}
+    
+    # Prepare for bulk update
+    rankings_to_update = []
+    # Fetch all at once to avoid N+1 issues
+    user_rankings_list = list(user_rankings_qs)
+    
+    for ranking in user_rankings_list:
+        new_score = summary_rank_map.get(str(ranking.summary_id), 0.0)
+        current_score = getattr(ranking, score_field_name)
+
+        if abs(current_score - new_score) > 1e-9: # Compare floats
+            setattr(ranking, score_field_name, new_score)
+            ranking.total_score = recommender_logic.calculate_total_score_from_components(
+                ranking.category_score, ranking.search_history_score, ranking.favorite_keywords_score,
+                CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
+            )
+            ranking.updated_at = timezone.now()
+            rankings_to_update.append(ranking)
+
+    if rankings_to_update:
+        SummaryRanking.objects.bulk_update(rankings_to_update, [score_field_name, 'total_score', 'updated_at'])
+        logger.info(f"Bulk updated {len(rankings_to_update)} rankings for user {user_id} for score '{score_field_name}'.")
+
 def update_user_search_history_rankings(user_id):
     if not user_id:
         logger.warning("User ID not provided for search history ranking update.")
@@ -390,26 +524,10 @@ def update_user_search_history_rankings(user_id):
             user_id=user_id,
             created_at__gte=timezone.now() - datetime.timedelta(days=7)
         ).values_list('query', flat=True).distinct())
-
-        user_rankings = SummaryRanking.objects.filter(user_id=user_id)
         
-        summaries_to_update_ids = user_rankings.values_list('summary_id', flat=True)
-        summaries_dict = {str(s.id): s for s in NewsSummary.objects.filter(id__in=summaries_to_update_ids)}
-
-        for ranking in user_rankings:
-            summary = summaries_dict.get(str(ranking.summary_id))
-            if not summary:
-                continue
-
-            new_sh_score = _calculate_fts_score_for_summary(summary, search_history_keywords)
-            if ranking.search_history_score != new_sh_score:
-                ranking.search_history_score = new_sh_score
-                ranking.total_score = recommender_logic.calculate_total_score_from_components(
-                    ranking.category_score, ranking.search_history_score, ranking.favorite_keywords_score,
-                    CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
-                )
-                ranking.save(update_fields=['search_history_score', 'total_score', 'updated_at'])
-        logger.info(f"Finished updating search history based rankings for existing entries of user {user_id}.")
+        _batch_update_fts_scores(user_id, search_history_keywords, 'search_history_score', SEARCH_HISTORY_WEIGHT)
+        
+        logger.info(f"Finished updating search history based rankings for user {user_id}.")
     except Exception as e:
         logger.error(f"Error updating search history rankings for user {user_id}: {e}", exc_info=True)
 
@@ -425,149 +543,82 @@ def update_user_favorite_keywords_rankings(user_id):
             if user_pref.favorite_keywords and isinstance(user_pref.favorite_keywords, list):
                 favorite_keywords_data = [kw for kw in user_pref.favorite_keywords if kw and isinstance(kw, str)]
         except UserPreference.DoesNotExist:
-
-            logger.info(f"User {user_id} has no UserPreference or favorite keywords. Skipping favorite keywords ranking update.")
-            return
+            logger.info(f"User {user_id} has no UserPreference. Skipping favorite keywords ranking update.")
         
-        if not favorite_keywords_data:
-            user_rankings_to_reset = SummaryRanking.objects.filter(user_id=user_id)
-            updated_count = 0
-            for ranking in user_rankings_to_reset:
-                if ranking.favorite_keywords_score != 0.0:
-                    ranking.favorite_keywords_score = 0.0
-                    ranking.total_score = recommender_logic.calculate_total_score_from_components(
-                        ranking.category_score, ranking.search_history_score, ranking.favorite_keywords_score,
-                        CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
-                    )
-                    ranking.save(update_fields=['favorite_keywords_score', 'total_score', 'updated_at'])
-                    updated_count +=1
-            if updated_count > 0:
-                 logger.info(f"Reset favorite_keywords_score to 0 for {updated_count} existing rankings for user {user_id} due to empty favorite list.")
-            return
+        _batch_update_fts_scores(user_id, favorite_keywords_data, 'favorite_keywords_score', FAVORITE_KEYWORDS_WEIGHT)
 
-        # Chỉ lấy và cập nhật các bản ghi SummaryRanking đã tồn tại cho user_id này
-        user_rankings = SummaryRanking.objects.filter(user_id=user_id)
-        
-        summaries_to_update_ids = user_rankings.values_list('summary_id', flat=True)
-        summaries_dict = {str(s.id): s for s in NewsSummary.objects.filter(id__in=summaries_to_update_ids)}
-
-        for ranking in user_rankings:
-            summary = summaries_dict.get(str(ranking.summary_id))
-            if not summary: # Bỏ qua nếu tóm tắt không còn tồn tại
-                continue
-                
-            new_fk_score = _calculate_fts_score_for_summary(summary, favorite_keywords_data)
-            if ranking.favorite_keywords_score != new_fk_score:
-                ranking.favorite_keywords_score = new_fk_score
-                ranking.total_score = recommender_logic.calculate_total_score_from_components(
-                    ranking.category_score, ranking.search_history_score, ranking.favorite_keywords_score,
-                    CATEGORY_WEIGHT, SEARCH_HISTORY_WEIGHT, FAVORITE_KEYWORDS_WEIGHT
-                )
-                ranking.save(update_fields=['favorite_keywords_score', 'total_score', 'updated_at'])
-        logger.info(f"Finished updating favorite keywords based rankings for existing entries of user {user_id}.")
+        logger.info(f"Finished updating favorite keywords based rankings for user {user_id}.")
     except Exception as e:
         logger.error(f"Error updating favorite keywords rankings for user {user_id}: {e}", exc_info=True)
 
 
-def _calculate_initial_category_score(user_id, summary_article_id):
-    if not user_id or not summary_article_id:
-        return 0.0
-    try:
-        article = NewsArticle.objects.filter(id=summary_article_id).first()
-        if not article:
-            return 0.0
-        
-        article_category_relation = NewsArticleCategory.objects.filter(article_id=article.id).first()
-        if not article_category_relation or not article_category_relation.category_id:
-            return 0.0
-        
-        category_id = article_category_relation.category_id
-
-        summaries_in_category_ids = NewsSummary.objects.filter(
-            article_id__in=NewsArticleCategory.objects.filter(
-                category_id=category_id
-            ).values_list('article_id', flat=True)
-        ).values_list('id', flat=True)
-
-        current_category_duration = SummaryViewLog.objects.filter(
-            user_id=user_id,
-            summary_id__in=summaries_in_category_ids,
-            duration_seconds__gte=VIEW_DURATION_THRESHOLD
-        ).aggregate(total_duration=DbSum('duration_seconds'))['total_duration'] or Decimal('0.0')
-
-        current_category_clicks = SummaryClickLog.objects.filter(
-            user_id=user_id,
-            summary_id__in=summaries_in_category_ids
-        ).count()
-
-        initial_category_score = _calculate_category_score_softmax_service(
-            current_category_duration=current_category_duration,
-            current_category_clicks=current_category_clicks,
-            user_id=str(user_id),
-            current_category_id=str(category_id)
-        )
-        return float(initial_category_score)
-
-    except Exception as e:
-        logger.error(f"Error calculating initial category score for article {summary_article_id}, user {user_id}: {e}", exc_info=True)
-        return 0.0
-
 def _get_all_user_category_interactions_service(user_id: str):
-    viewed_summaries_qs = SummaryViewLog.objects.filter(
+
+    view_logs_data = list(SummaryViewLog.objects.filter(
         user_id=user_id,
         duration_seconds__gte=VIEW_DURATION_THRESHOLD
-    ).values_list('summary_id', flat=True).distinct()
+    ).values('summary_id', 'duration_seconds'))
 
-    clicked_summaries_qs = SummaryClickLog.objects.filter(
+    click_logs_data = list(SummaryClickLog.objects.filter(
         user_id=user_id
-    ).values_list('summary_id', flat=True).distinct()
+    ).values('summary_id'))
     
-    all_interacted_summary_ids = set(list(viewed_summaries_qs)) | set(list(clicked_summaries_qs))
-    if not all_interacted_summary_ids:
+    interacted_summary_ids = {log['summary_id'] for log in view_logs_data} | \
+                             {log['summary_id'] for log in click_logs_data}
+
+    if not interacted_summary_ids:
         return []
 
-    article_ids_for_summaries = NewsSummary.objects.filter(id__in=all_interacted_summary_ids)\
-        .exclude(article_id__isnull=True)\
-        .values_list('article_id', flat=True).distinct()
+    summary_article_map = {
+        item['id']: item['article_id'] 
+        for item in NewsSummary.objects.filter(
+            id__in=interacted_summary_ids,
+            article_id__isnull=False
+        ).values('id', 'article_id')
+    }
 
-    if not article_ids_for_summaries:
+    if not summary_article_map:
         return []
 
-    article_to_category_relations = NewsArticleCategory.objects.filter(article_id__in=article_ids_for_summaries)\
-        .values('category_id').distinct()
+    article_ids_with_summaries = list(summary_article_map.values())
+    article_category_map = {
+        item['article_id']: item['category_id']
+        for item in NewsArticleCategory.objects.filter(
+            article_id__in=article_ids_with_summaries
+        ).values('article_id', 'category_id')
+    }
     
-    unique_category_ids = {rel['category_id'] for rel in article_to_category_relations}
+    summary_category_map = {
+        summary_id: article_category_map.get(article_id)
+        for summary_id, article_id in summary_article_map.items()
+        if article_category_map.get(article_id) is not None
+    }
 
-    category_interactions_data = []
-    for cat_id_obj in unique_category_ids:
-        cat_id = str(cat_id_obj)
-        summaries_in_this_category = NewsSummary.objects.filter(
-            article_id__in=NewsArticleCategory.objects.filter(category_id=cat_id).values_list('article_id', flat=True)
-        ).values_list('id', flat=True)
-        
-        relevant_summaries_in_cat_ids = all_interacted_summary_ids.intersection(set(summaries_in_this_category))
+    category_interactions = {}
 
-        if not relevant_summaries_in_cat_ids:
-            cat_total_duration = Decimal('0.0')
-            cat_total_clicks = 0
-        else:
-            cat_total_duration = SummaryViewLog.objects.filter(
-                user_id=user_id,
-                summary_id__in=relevant_summaries_in_cat_ids,
-                duration_seconds__gte=VIEW_DURATION_THRESHOLD
-            ).aggregate(total_duration=DbSum('duration_seconds'))['total_duration'] or Decimal('0.0')
+    for log in view_logs_data:
+        category_id = summary_category_map.get(log['summary_id'])
+        if category_id:
+            cat_id_str = str(category_id)
+            category_interactions.setdefault(cat_id_str, {'duration': Decimal('0.0'), 'clicks': Decimal('0.0')})
+            category_interactions[cat_id_str]['duration'] += log['duration_seconds']
+    
+    click_counts_by_category = {}
+    for log in click_logs_data:
+        category_id = summary_category_map.get(log['summary_id'])
+        if category_id:
+            cat_id_str = str(category_id)
+            click_counts_by_category.setdefault(cat_id_str, 0)
+            click_counts_by_category[cat_id_str] += 1
+            
+    for cat_id_str, count in click_counts_by_category.items():
+        category_interactions.setdefault(cat_id_str, {'duration': Decimal('0.0'), 'clicks': Decimal('0.0')})
+        category_interactions[cat_id_str]['clicks'] = Decimal(count)
 
-            cat_total_clicks = SummaryClickLog.objects.filter(
-                user_id=user_id,
-                summary_id__in=relevant_summaries_in_cat_ids
-            ).count()
-        
-        category_interactions_data.append({
-            'category_id': cat_id,
-            'duration': cat_total_duration,
-            'clicks': Decimal(cat_total_clicks)
-        })
-    return category_interactions_data
+    return [
+        {'category_id': cat_id, 'duration': data['duration'], 'clicks': data['clicks']}
+        for cat_id, data in category_interactions.items()
+    ]
 
 
 def _calculate_category_score_softmax_service(
