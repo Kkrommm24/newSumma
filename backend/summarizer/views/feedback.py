@@ -4,14 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from summarizer.services.feedback_service import FeedbackService
+from summarizer.summarizers.feedback_controller import feedback_controller
 from summarizer.summarizers.llama.tasks import summarize_single_article_task
 from news.models import NewsArticle
 from summarizer.models import NewsSummary
 
 logger = logging.getLogger(__name__)
-
-feedback_service = FeedbackService()
 
 
 @api_view(['POST'])
@@ -33,7 +31,7 @@ def record_summary_feedback(request):
         is_upvote = False
 
     try:
-        summary_obj, trigger_resummarize, final_upvotes, final_downvotes = feedback_service.record_feedback_and_check_threshold(
+        summary_obj, trigger_resummarize, final_upvotes, final_downvotes = feedback_controller.record_feedback_interface(
             user=user, summary_id=summary_id, is_upvote=is_upvote)
 
         if summary_obj is None:
@@ -49,26 +47,31 @@ def record_summary_feedback(request):
                                  'message': 'Summary not found.'},
                                 status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
+                logger.error(
+                    f"View: Unexpected error checking summary existence for {summary_id}: {e}")
                 return Response({'status': 'error',
                                  'message': 'An unexpected error occurred.'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         article_published_at = None
-        try:
-            article = NewsArticle.objects.get(id=summary_obj.article_id)
-            article_published_at = article.published_at
-        except NewsArticle.DoesNotExist:
-            logger.warning(
-                f"View: Không tìm thấy NewsArticle với ID {summary_obj.article_id} cho summary {summary_obj.id}")
-        except Exception as e:
-            logger.exception(
-                f"View: Lỗi khi lấy NewsArticle {summary_obj.article_id} cho summary {summary_obj.id}: {e}")
+        if summary_obj and summary_obj.article_id:
+            try:
+                article = NewsArticle.objects.get(id=summary_obj.article_id)
+                article_published_at = article.published_at
+            except NewsArticle.DoesNotExist:
+                logger.warning(
+                    f"View: Không tìm thấy NewsArticle với ID {summary_obj.article_id} cho summary {summary_obj.id}")
+            except Exception as e:
+                logger.exception(
+                    f"View: Lỗi khi lấy NewsArticle {summary_obj.article_id} cho summary {summary_obj.id}: {e}")
 
         if trigger_resummarize:
             try:
                 summarize_single_article_task.delay(
                     article_id_str=str(summary_obj.article_id))
             except Exception as task_error:
+                logger.error(
+                    f"View: Lỗi khi trigger summarize_single_article_task cho article {summary_obj.article_id}: {task_error}")
                 pass
 
         return Response({
@@ -81,7 +84,14 @@ def record_summary_feedback(request):
             'published_at': article_published_at
         }, status=status.HTTP_200_OK)
 
+    except NewsSummary.DoesNotExist:
+        return Response({'status': 'error',
+                         'message': 'Summary not found.'},
+                        status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
+        logger.error(
+            f"View: Unexpected error in record_summary_feedback for summary {summary_id}: {e}",
+            exc_info=False)
         return Response({'status': 'error',
                          'message': 'An unexpected error occurred in the view.'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)

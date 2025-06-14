@@ -29,6 +29,7 @@ class SummarySerializer(serializers.ModelSerializer):
     article = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = NewsSummary
@@ -43,6 +44,7 @@ class SummarySerializer(serializers.ModelSerializer):
             'updated_at',
             'user_vote',
             'comment_count',
+            'category_name',
         )
 
     def get_article(self, obj: NewsSummary):
@@ -73,3 +75,19 @@ class SummarySerializer(serializers.ModelSerializer):
             return article_stats.comment_count
         except ArticleStats.DoesNotExist:
             return 0
+
+    def get_category_name(self, obj: NewsSummary) -> str | None:
+        articles_dict = self.context.get('articles', {})
+        article_instance = articles_dict.get(str(obj.article_id))
+
+        if article_instance:
+            try:
+                article_category_relation = NewsArticleCategory.objects.filter(
+                    article_id=article_instance.id).first()
+                if article_category_relation:
+                    category = Category.objects.get(
+                        id=article_category_relation.category_id)
+                    return category.name
+            except (NewsArticleCategory.DoesNotExist, Category.DoesNotExist):
+                return None
+        return None

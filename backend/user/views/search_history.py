@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from user.serializers.serializers import UserSearchHistorySerializer, DeleteSearchHistorySerializer, AddSearchHistorySerializer
-from user.services.search_history_service import get_user_search_history, add_user_search_history, delete_search_histories
+from user.user.search_history_controller.search_history_controller import SearchHistoryController
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,8 @@ class UserSearchHistoryView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         try:
-            histories = get_user_search_history(user.id)
+            histories = SearchHistoryController.get_user_search_history(
+                user.id)
             serializer = UserSearchHistorySerializer(histories, many=True)
             return Response({
                 "items": serializer.data,
@@ -35,7 +36,8 @@ class UserSearchHistoryView(APIView):
         if serializer.is_valid():
             query = serializer.validated_data['query']
             try:
-                new_history = add_user_search_history(user.id, query)
+                new_history = SearchHistoryController.add_user_search_history(
+                    user.id, query)
                 output_serializer = UserSearchHistorySerializer(new_history)
                 return Response({
                     "items": [output_serializer.data],
@@ -67,10 +69,12 @@ class UserSearchHistoryView(APIView):
         if input_serializer.is_valid():
             queries = input_serializer.validated_data['queries']
             try:
-                deleted_count = delete_search_histories(user.id, queries)
+                deleted_count = SearchHistoryController.delete_search_histories(
+                    user.id, queries)
 
                 if deleted_count > 0:
-                    remaining_histories = get_user_search_history(user.id)
+                    remaining_histories = SearchHistoryController.get_user_search_history(
+                        user.id)
                     serializer = UserSearchHistorySerializer(
                         remaining_histories, many=True)
                     return Response({

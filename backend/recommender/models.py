@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class SummaryViewLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_id = models.UUIDField(null=True, blank=True)
+    user_id = models.UUIDField()
     summary_id = models.UUIDField()
-    duration_seconds = models.PositiveIntegerField()
+    duration_seconds = models.DecimalField(max_digits=10, decimal_places=2)
     viewed_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -33,7 +33,7 @@ class SummaryViewLog(models.Model):
 
 class SummaryClickLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_id = models.UUIDField(null=True, blank=True)
+    user_id = models.UUIDField()
     summary_id = models.UUIDField()
     clicked_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(default=timezone.now)

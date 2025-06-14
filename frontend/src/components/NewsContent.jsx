@@ -413,6 +413,7 @@ const NewsContent = ({ fetchMode = 'recommendations', searchQuery = null }) => {
                 showBookmarkButton={isAuthenticated}
                 isTogglingBookmark={togglingBookmarkArticleId === item.articleId}
                 onSuccessfulDownvote={handleSuccessfulDownvote}
+                category_name={item.category_name}
               />
             </div>
           );

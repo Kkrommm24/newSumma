@@ -1,6 +1,6 @@
 import logging
 
-from crawler.crawlers.baomoi.crawler import BaomoiCrawler
+from crawler.crawlers.crawl_baomoi_controller.crawler import BaomoiCrawler
 from crawler.services.news_service import save_articles_with_categories
 from celery import shared_task
 

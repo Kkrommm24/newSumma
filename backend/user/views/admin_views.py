@@ -9,8 +9,8 @@ from user.serializers.admin_serializers import (
     AdminSummarySerializer,
     AdminCommentSerializer, AdminFavoriteWordSerializer
 )
-from crawler.crawlers.baomoi.tasks import crawl_baomoi_articles
-from crawler.crawlers.vnexpress.tasks import crawl_vnexpress_articles
+from crawler.crawlers.crawl_baomoi_controller.tasks import crawl_baomoi_articles
+from crawler.crawlers.crawl_vnexpress_controller.tasks import crawl_vnexpress_articles
 from summarizer.summarizers.llama.tasks import generate_article_summaries
 from news.models import NewsArticle, NewsSource
 from user.models import User

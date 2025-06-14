@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ObjectDoesNotExist
 from user.serializers.serializers import UserPreferenceSerializer, AddFavoriteKeywordsSerializer, DeleteFavoriteKeywordsSerializer
-from user.services.user_preference_service import get_user_preference, add_favorite_keywords, delete_favorite_keywords
+from user.user.user_preference_controller.user_preference_controller import UserPreferenceController
 
 
 class UserFavoriteKeywordsView(APIView):
@@ -13,7 +13,7 @@ class UserFavoriteKeywordsView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         try:
-            preference = get_user_preference(user.id)
+            preference = UserPreferenceController.get_user_preference(user.id)
             serializer = UserPreferenceSerializer(preference)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
@@ -31,7 +31,8 @@ class UserFavoriteKeywordsView(APIView):
         if input_serializer.is_valid():
             keywords = input_serializer.validated_data['keywords']
             try:
-                updated_preference = add_favorite_keywords(user.id, keywords)
+                updated_preference = UserPreferenceController.add_favorite_keywords(
+                    user.id, keywords)
                 output_serializer = UserPreferenceSerializer(
                     updated_preference)
                 return Response(
@@ -52,12 +53,11 @@ class UserFavoriteKeywordsView(APIView):
 
     def delete(self, request, *args, **kwargs):
         user = request.user
-
         input_serializer = DeleteFavoriteKeywordsSerializer(data=request.data)
         if input_serializer.is_valid():
             keywords = input_serializer.validated_data['keywords']
             try:
-                updated_preference = delete_favorite_keywords(
+                updated_preference = UserPreferenceController.delete_favorite_keywords(
                     user.id, keywords)
                 output_serializer = UserPreferenceSerializer(
                     updated_preference)

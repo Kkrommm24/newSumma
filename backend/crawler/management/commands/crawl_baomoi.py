@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from crawler.crawlers.baomoi.tasks import crawl_baomoi_articles
+from crawler.crawlers.crawl_baomoi_controller.tasks import crawl_baomoi_articles
 import logging
 
 logger = logging.getLogger(__name__)

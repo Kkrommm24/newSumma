@@ -3,9 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from recommender.services.recommend_service import (
-    get_recommendations_for_user
-)
+from recommender.recommenders.recommender_controller.recommender_controller import get_recommendations_interface
 from summarizer.serializers.serializers import (
     SummarySerializer as NewsAppSummarySerializer
 )
@@ -23,7 +21,7 @@ def get_recommendations(request):
         limit = int(request.GET.get('limit', 10))
         offset = int(request.GET.get('offset', 0))
 
-        summaries, articles_dict, source_info = get_recommendations_for_user(
+        summaries, articles_dict, source_info = get_recommendations_interface(
             user_id,
             current_summary_id,
             limit=limit,

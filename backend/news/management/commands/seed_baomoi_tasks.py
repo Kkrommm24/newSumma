@@ -23,8 +23,9 @@ class Command(BaseCommand):
         PeriodicTask.objects.create(
             name='Crawl baomoi every 10 minutes',
             interval=schedule,
-            task='crawler.crawlers.baomoi.tasks.crawl_baomoi_articles',
-            args=json.dumps([10]),
+            task='crawler.crawlers.crawl_baomoi_controller.tasks.crawl_baomoi_articles',
+            args=json.dumps(
+                [10]),
         )
 
         self.stdout.write(self.style.SUCCESS(
