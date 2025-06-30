@@ -1,51 +1,5 @@
-import math
 from decimal import Decimal
 from recommender.services import recommend_service
-
-
-def calculate_softmax_components_for_category(
-    all_category_interactions_data: list[dict],
-    current_category_id: str,
-    current_category_duration: Decimal,  # d_c
-    current_category_clicks: int  # c_c
-) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal, Decimal]:
-    if not all_category_interactions_data:
-        return Decimal('0.0'), Decimal('0.0'), Decimal(
-            '0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
-
-    all_durations = [item['duration']
-                     for item in all_category_interactions_data]
-    all_clicks = [item['clicks'] for item in all_category_interactions_data]
-
-    max_d_overall = max(all_durations) if all_durations else Decimal('0.0')
-    max_c_overall = max(all_clicks) if all_clicks else Decimal('0.0')
-
-    exp_d_values = []
-    exp_c_values = []
-
-    try:
-        for item_duration in all_durations:
-            exp_d_values.append(math.exp(float(item_duration - max_d_overall)))
-        for item_clicks in all_clicks:
-            exp_c_values.append(math.exp(float(item_clicks - max_c_overall)))
-    except OverflowError:
-        return Decimal('0.0'), Decimal('0.0'), Decimal(
-            '0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0')
-
-    sum_exp_d_all = Decimal(str(sum(exp_d_values)))
-    sum_exp_c_all = Decimal(str(sum(exp_c_values)))
-
-    try:
-        exp_d_current = Decimal(
-            str(math.exp(float(current_category_duration - max_d_overall))))
-        exp_c_current = Decimal(
-            str(math.exp(float(Decimal(current_category_clicks) - max_c_overall))))
-    except OverflowError:
-        return Decimal('0.0'), Decimal(
-            '0.0'), sum_exp_d_all, sum_exp_c_all, Decimal('0.0'), Decimal('0.0')
-
-    return max_d_overall, max_c_overall, sum_exp_d_all, sum_exp_c_all, exp_d_current, exp_c_current
-
 
 def finalize_softmax_category_score(
     sum_exp_d_all: Decimal,

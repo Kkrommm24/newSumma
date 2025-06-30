@@ -226,23 +226,6 @@ def process_summary_click_service(user_id, summary_id_from_request):
     if not user_id:
         logger.info(
             "Attempted to process summary click without user_id. Skipping log and ranking.")
-        try:
-            summary_object_for_stats = get_object_or_404(
-                NewsSummary, id=summary_id_from_request)
-            if summary_object_for_stats.article_id:
-                ArticleStats.objects.update_or_create(
-                    article_id=summary_object_for_stats.article_id,
-                    defaults={'view_count': F('view_count') + 1}
-                )
-            return {
-                "message": "Click processed for general stats only (anonymous user)."}
-        except NewsSummary.DoesNotExist:
-            raise
-        except Exception as e_stats:
-            logger.error(
-                f"Error updating general stats for anonymous click on summary {summary_id_from_request}: {e_stats}")
-            raise
-
     try:
         summary_object = get_object_or_404(
             NewsSummary, id=summary_id_from_request)

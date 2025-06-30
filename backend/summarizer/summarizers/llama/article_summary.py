@@ -236,7 +236,7 @@ class LlamaSummarizer:
                     logger.warning("Summary được phát hiện là tiếng Anh.")
                     return None
             except LangDetectException:
-                logger.warning(f"Không thể xác định ngôn ngữ của tóm tắt")
+                logger.warning("Không thể xác định ngôn ngữ của tóm tắt")
                 return None
 
             logger.info(
