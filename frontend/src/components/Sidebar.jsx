@@ -54,7 +54,7 @@ const Sidebar = ({ collapsed, onCollapse }) => {
   const antdMenuItems = [
     { key: '1', icon: <HomeOutlined />, label: "Dành cho bạn", path: '/' },
     { key: '2', icon: <FireOutlined />, label: "Đang hot", path: '/trending' },
-    { key: '3', icon: <HeartOutlined />, label: "Danh mục yêu thích", path: '/favourite-categories' },
+    { key: '3', icon: <HeartOutlined />, label: "Từ khóa yêu thích", path: '/favourite-categories' },
     { key: '4', icon: <BookOutlined />, label: "Bookmark", path: '/bookmark' },
     { key: '5', icon: <UserOutlined />, label: "Trang cá nhân", path: '/profile' }
   ]
